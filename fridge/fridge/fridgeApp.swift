@@ -8,10 +8,13 @@
 import SwiftUI
 
 @main
-struct fridgeApp: App {
+struct FridgeApp: App {
+    @StateObject private var fridgeVM = FridgeViewModel()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
+                .environmentObject(fridgeVM)
         }
     }
 }
