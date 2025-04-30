@@ -36,5 +36,8 @@ struct FridgeItem: Identifiable {
 struct Recipe: Identifiable {
     let id: UUID
     let name: String
-    let imageName: String
+    let imageURL: String
+    let usedIngredients: [String]
+    let missedIngredients: [String]
+    let instructions: String? // potential to be implemented
 }

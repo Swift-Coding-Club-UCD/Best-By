@@ -10,28 +10,42 @@ import SwiftUI
 
 final class FridgeViewModel: ObservableObject {
     @Published private(set) var items: [FridgeItem] = []
-
+    @Published var suggestedRecipes: [Recipe] = []
+    private let recipeService = RecipeService()
+    
     func add(item: FridgeItem) {
         items.append(item)
     }
-
+    
     func items(in category: FridgeCategory) -> [FridgeItem] {
         items.filter { $0.category == category }
     }
-
+    
     func countExpiring(in category: FridgeCategory) -> Int {
         items(in: category).filter { $0.daysUntilExpiry <= 3 }.count
     }
-
+    
     func nextExpiry() -> FridgeItem? {
         items.min { $0.expirationDate < $1.expirationDate }
     }
-
-    var suggestedRecipes: [Recipe] {
-        [
-            Recipe(id: UUID(), name: "Avocado Toast", imageName: "avocado_toast"),
-            Recipe(id: UUID(), name: "Fruit Salad", imageName: "fruit_salad"),
-            Recipe(id: UUID(), name: "Yogurt Parfait", imageName: "yogurt_parfait")
-        ]
+    
+    /*    var suggestedRecipes: [Recipe] {
+     [
+     Recipe(id: UUID(), name: "Avocado Toast", imageName: "avocado_toast"),
+     Recipe(id: UUID(), name: "Fruit Salad", imageName: "fruit_salad"),
+     Recipe(id: UUID(), name: "Yogurt Parfait", imageName: "yogurt_parfait")
+     ]
+     }
+     }
+     */
+    
+    // Fetch recipes from Spoonacular
+    func fetchSuggestedRecipes() {
+        let ingredients = items.map { $0.name.lowercased() }
+            recipeService.fetchRecipes(ingredients: ingredients) { [weak self] recipes in
+                DispatchQueue.main.async {
+                    self?.suggestedRecipes = recipes ?? []
+            }
+        }
     }
 }
