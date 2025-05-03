@@ -33,7 +33,6 @@ class RecipeService {
                         imageURL: $0.image,
                         usedIngredients: $0.usedIngredients.map { $0.name },
                         missedIngredients: $0.missedIngredients.map { $0.name },
-                        instructions: nil
                     )
                 }
                 completion(mappedRecipes)

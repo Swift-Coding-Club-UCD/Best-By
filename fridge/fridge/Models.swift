@@ -39,5 +39,4 @@ struct Recipe: Identifiable {
     let imageURL: String
     let usedIngredients: [String]
     let missedIngredients: [String]
-    let instructions: String? // potential to be implemented
 }

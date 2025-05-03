@@ -112,7 +112,7 @@ extension String {
             return nil
         }
 
-        var found = String(self[range]).replacingOccurrences(of: "-", with: "/")
+        let found = String(self[range]).replacingOccurrences(of: "-", with: "/")
         let parts = found.split(separator: "/").map(String.init)
         guard parts.count == 2,
               let month = Int(parts[0]), (1...12).contains(month) else {

@@ -63,19 +63,30 @@ struct RecipeCircleCard: View {
     let recipe: Recipe
     
     var body: some View {
-        VStack {
-            Image(recipe.imageName)
-              .resizable()
-              .scaledToFill()
-              .frame(width: 100, height: 100)
-              .clipShape(Circle())
-              .overlay(Circle().stroke(Color.secondary, lineWidth: 4))
-            Text(recipe.name)
-              .font(.caption)
-              .multilineTextAlignment(.center)
-              .frame(width: 100)
-        }
-    }
-}
+           VStack {
+               AsyncImage(url: URL(string: recipe.imageURL)) { phase in
+                   if let image = phase.image {
+                       image
+                           .resizable()
+                           .scaledToFill()
+                           .frame(width: 100, height: 100)
+                           .clipShape(Circle())
+                           .overlay(Circle().stroke(Color.secondary, lineWidth: 4))
+                   } else if phase.error != nil {
+                       Image(systemName: "photo") // Fallback icon
+                           .resizable()
+                           .scaledToFit()
+                           .frame(width: 100, height: 100)
+                   } else {
+                       ProgressView() // Loading spinner
+                   }
+               }
+               Text(recipe.name)
+                   .font(.caption)
+                   .multilineTextAlignment(.center)
+                   .frame(width: 100)
+           }
+       }
+   }
 
 
