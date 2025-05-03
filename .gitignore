@@ -1,0 +1,7 @@
+# Exclude Xcode user files
+*.xcuserstate
+*.xcuserdata
+UserInterfaceState.xcuserstate
+
+# Exclude API key config
+ApiKeys.xcconfig

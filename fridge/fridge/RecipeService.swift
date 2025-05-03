@@ -8,7 +8,7 @@
 import Foundation
 
 class RecipeService {
-    private let apiKey = "9edf1de354124eca89db1445444dcae1" // Replace with your key
+    private let apiKey = Bundle.main.object(forInfoDictionaryKey: "SPOONACULAR_API_KEY") as? String ?? ""
     private let baseURL = "https://api.spoonacular.com/recipes"
     
     // Fetch recipes by ingredients
