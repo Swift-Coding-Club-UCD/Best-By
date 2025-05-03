@@ -8,7 +8,7 @@
 import Foundation
 
 class RecipeService {
-    private let apiKey = Bundle.main.object(forInfoDictionaryKey: "SPOONACULAR_API_KEY") as? String ?? ""
+    private let apiKey = "0c1bd68ec726432db69c53952e5b49f0"
     private let baseURL = "https://api.spoonacular.com/recipes"
     
     // Fetch recipes by ingredients
@@ -44,15 +44,16 @@ class RecipeService {
     }
 }
 
-// MARK: - Helper Models
-struct SpoonacularRecipe: Decodable {
-    let id: Int
-    let title: String
-    let image: String
-    let usedIngredients: [Ingredient]
-    let missedIngredients: [Ingredient]
-}
+    // MARK: - Helper Models
+    struct SpoonacularRecipe: Decodable {
+        let id: Int
+        let title: String
+        let image: String
+        let usedIngredients: [Ingredient]
+        let missedIngredients: [Ingredient]
+    }
+    
+    struct Ingredient: Decodable {
+        let name: String
+    }
 
-struct Ingredient: Decodable {
-    let name: String
-}

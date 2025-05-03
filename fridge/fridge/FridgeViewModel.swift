@@ -42,9 +42,9 @@ final class FridgeViewModel: ObservableObject {
     // Fetch recipes from Spoonacular
     func fetchSuggestedRecipes() {
         let ingredients = items.map { $0.name.lowercased() }
-            recipeService.fetchRecipes(ingredients: ingredients) { [weak self] recipes in
-                DispatchQueue.main.async {
-                    self?.suggestedRecipes = recipes ?? []
+        recipeService.fetchRecipes(ingredients: ingredients) { [weak self] recipes in
+            DispatchQueue.main.async {
+                self?.suggestedRecipes = recipes ?? []
             }
         }
     }
