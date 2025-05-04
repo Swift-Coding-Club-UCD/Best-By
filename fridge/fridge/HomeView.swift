@@ -17,11 +17,14 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Next to Expire:")
                             .font(.headline)
+                            .foregroundColor(.white)
                         Text("\(next.name) in \(next.daysUntilExpiry) days")
                             .font(.title3)
+                            .foregroundColor(.white)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(Color.yellow.opacity(0.3))
+                    .background(Color.blue.opacity(0.7))
                     .cornerRadius(12)
                     .padding(.horizontal)
                 }
@@ -34,6 +37,7 @@ struct HomeView: View {
                         ForEach(FridgeCategory.allCases) { cat in
                             CategoryCard(category: cat,
                                          countExpiring: fridgeVM.countExpiring(in: cat))
+                            .frame(width: 170)
                         }
                     }
                     .padding(.horizontal)

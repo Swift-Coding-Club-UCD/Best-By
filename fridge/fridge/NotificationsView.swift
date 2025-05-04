@@ -38,6 +38,6 @@ struct NotificationRow: View {
         }
         .padding()
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.gray.opacity(0.1)))
-        .shadow(radius: 1)
+        .shadow(radius: 0.5)
     }
 }
