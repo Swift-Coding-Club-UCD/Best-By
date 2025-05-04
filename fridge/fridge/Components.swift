@@ -29,32 +29,40 @@ struct CategoryCard: View {
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 16)
               .fill(color(for: category))
-              .frame(height: 140)
+              .frame(height: 160)
+              .shadow(color: .gray.opacity(1), radius: 5)
             
-            VStack {
+            VStack(spacing: 8) {
+                Spacer(minLength: 0)
                 Image(category.rawValue)
                   .resizable()
-                  .scaledToFill()
-                  .frame(height: 90)
+                  .aspectRatio(contentMode: .fill)
+                  .frame(maxWidth: .infinity, maxHeight: 100)
                   .clipped()
+                  .cornerRadius(8)
                 Text(category.rawValue.capitalized)
                   .font(.headline)
                   .padding(.bottom, 8)
+                Spacer(minLength: 0)
             }
             .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             if countExpiring > 0 {
                 Text("\(countExpiring)")
-                  .font(.caption)
+                  .font(.title3)
                   .foregroundColor(.white)
-                  .padding(6)
+                  .padding(11)
                   .background(Color.red)
+                  .shadow(color: .gray.opacity(0.2), radius: 5)
                   .clipShape(Circle())
-                  .offset(x: -8, y: 8)
+                  .offset(x: -4, y: 4)
             }
         }
+        .frame(height: 160)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -77,6 +85,7 @@ struct RecipeCircleCard: View {
                            .resizable()
                            .scaledToFit()
                            .frame(width: 100, height: 100)
+                           .shadow(color: .gray.opacity(0.2), radius: 5)
                    } else {
                        ProgressView() // Loading spinner
                    }
@@ -88,5 +97,3 @@ struct RecipeCircleCard: View {
            }
        }
    }
-
-

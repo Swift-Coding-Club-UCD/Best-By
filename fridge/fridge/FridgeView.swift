@@ -15,7 +15,15 @@ struct FridgeView: View {
         NavigationView {
             List {
                 ForEach(FridgeCategory.allCases) { cat in
-                    Section(header: Text(cat.displayName).font(.headline)) {
+                    Section(header:
+                        HStack {
+                            Text(cat.displayName)
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .padding(.leading, -20)
+                    ) {
                         ForEach(fridgeVM.items(in: cat)) { item in
                             HStack {
                                 Text(item.name)
