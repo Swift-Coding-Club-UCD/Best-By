@@ -12,11 +12,21 @@ struct AddItemView: View {
     @Environment(\.presentationMode) var presentationMode
 
     @State private var showScanner = false
-    @State private var useCamera = false
     @State private var pickedImage: UIImage?
     @State private var name = ""
     @State private var expiration = ""
+    @State private var selectedDate = Date().addingTimeInterval(7*24*60*60) // 1 week in future
     @State private var category: FridgeCategory = .vegetables
+    @State private var quantity = 1
+    @State private var useDatePicker = false
+    @State private var showValidationAlert = false
+    @State private var validationMessage = ""
+
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM/yy"
+        return formatter
+    }()
 
     var body: some View {
         NavigationView {
@@ -32,55 +42,134 @@ struct AddItemView: View {
                     }
                     HStack {
                         Spacer()
-                        Button(action: { useCamera = true; showScanner = true }) {
-                            Label("Camera", systemImage: "camera")
-                        }
-                        Spacer()
-                        Button(action: { useCamera = false; showScanner = true }) {
-                            Label("Gallery", systemImage: "photo.on.rectangle")
+                        Button(action: { showScanner = true }) {
+                            Label("Scan Item", systemImage: "camera.viewfinder")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 12)
+                                .background(Color.blue)
+                                .cornerRadius(10)
                         }
                         Spacer()
                     }
+                    .padding(.vertical, 8)
                 }
 
                 Section(header: Text("Details")) {
                     TextField("Name", text: $name)
-                    TextField("Expiration (MM/YY)", text: $expiration)
-                        .keyboardType(.numbersAndPunctuation)
+                    
+                    Toggle("Use Date Picker", isOn: $useDatePicker)
+                    
+                    if useDatePicker {
+                        DatePicker(
+                            "Expiration Date",
+                            selection: $selectedDate,
+                            in: Date()...,
+                            displayedComponents: .date
+                        )
+                    } else {
+                        TextField("Expiration (DD/MM/YY)", text: $expiration)
+                            .keyboardType(.numbersAndPunctuation)
+                            .onChange(of: expiration) { newValue in
+                                // Format as user types
+                                if newValue.count == 2 && !newValue.contains("/") {
+                                    expiration = newValue + "/"
+                                } else if newValue.count == 5 && newValue.last != "/" && newValue.filter({ $0 == "/" }).count == 1 {
+                                    expiration = newValue + "/"
+                                }
+                            }
+                    }
+                    
+                    Stepper("Quantity: \(quantity)", value: $quantity, in: 1...100)
+                    
                     Picker("Category", selection: $category) {
                         ForEach(FridgeCategory.allCases) { cat in
-                            Text(cat.displayName).tag(cat)
+                            Label(cat.displayName, systemImage: categoryIcon(for: cat))
+                                .foregroundColor(cat.color)
+                                .tag(cat)
                         }
                     }
                 }
 
                 Section {
                     Button("Save Item") {
-                        let fmt = DateFormatter()
-                        fmt.dateFormat = "MM/yy"
-                        if let date = fmt.date(from: expiration) {
-                            let item = FridgeItem(
-                                id: UUID(),
-                                name: name,
-                                expirationDate: date,
-                                category: category
-                            )
-                            fridgeVM.add(item: item)
+                        if saveItem() {
+                            presentationMode.wrappedValue.dismiss()
                         }
-                        presentationMode.wrappedValue.dismiss()
                     }
-                    .disabled(name.isEmpty || expiration.isEmpty)
+                    .disabled(name.isEmpty || (!useDatePicker && expiration.isEmpty))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .buttonStyle(.borderedProminent)
                 }
             }
             .navigationTitle("Add New Item")
             .sheet(isPresented: $showScanner) {
                 ScannerView(
-                    useCamera: useCamera,
+                    useCamera: true,
                     image: $pickedImage,
                     detectedName: $name,
                     detectedDate: $expiration
                 )
             }
+            .alert(isPresented: $showValidationAlert) {
+                Alert(
+                    title: Text("Invalid Date"),
+                    message: Text(validationMessage),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+        }
+    }
+    
+    private func saveItem() -> Bool {
+        var date: Date
+        
+        if useDatePicker {
+            date = selectedDate
+        } else {
+            // Validate the format
+            let pattern = #"^(0?[1-9]|[12][0-9]|3[01])/(0?[1-9]|1[0-2])/([0-9]{2})$"#
+            guard expiration.range(of: pattern, options: .regularExpression) != nil else {
+                validationMessage = "Please enter a valid date in DD/MM/YY format."
+                showValidationAlert = true
+                return false
+            }
+            
+            // Try to parse
+            guard let parsedDate = dateFormatter.date(from: expiration) else {
+                validationMessage = "The date you entered is not valid."
+                showValidationAlert = true
+                return false
+            }
+            
+            // Check if in the past
+            if parsedDate < Date() {
+                validationMessage = "The expiry date cannot be in the past."
+                showValidationAlert = true
+                return false
+            }
+            
+            date = parsedDate
+        }
+        
+        let item = FridgeItem(
+            id: UUID(),
+            name: name,
+            category: category,
+            expirationDate: date,
+            quantity: quantity
+        )
+        fridgeVM.add(item: item)
+        return true
+    }
+    
+    private func categoryIcon(for category: FridgeCategory) -> String {
+        switch category {
+        case .vegetables: return "leaf"
+        case .fruits: return "applelogo"
+        case .dairy: return "cup.and.saucer"
+        case .meat: return "fork.knife"
         }
     }
 }
