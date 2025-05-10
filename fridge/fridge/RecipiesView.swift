@@ -9,6 +9,7 @@ import SwiftUI
 
 struct RecipesView: View {
     @EnvironmentObject var fridgeVM: FridgeViewModel
+    @ObservedObject private var accessibilityManager = AccessibilityManager.shared
     @State private var searchQuery = ""
     @State private var showingFilterSheet = false
     @State private var showRecipeDetail = false
@@ -22,6 +23,7 @@ struct RecipesView: View {
     @State private var hideAllergenic = false
     @State private var showingToast = false
     @State private var toastMessage = ""
+    @State private var isReadingRecipe = false
     
     // Recipe categories
     let categories = ["All", "Quick Meals", "Vegetarian", "Healthy", "Desserts"]
@@ -304,10 +306,10 @@ struct RecipesView: View {
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
-                        showingFavorites = true
+                        showingFavorites.toggle()
                     }) {
-                        Image(systemName: "heart.fill")
-                            .foregroundColor(.red)
+                        Image(systemName: showingFavorites ? "heart.fill" : "heart")
+                            .foregroundColor(showingFavorites ? .red : nil)
                     }
                 }
             }
@@ -316,7 +318,7 @@ struct RecipesView: View {
             }
             .sheet(isPresented: $showRecipeDetail) {
                 if let recipe = selectedRecipe {
-                    RecipeDetailView(recipe: recipe)
+                    RecipeDetailView(recipe: recipe, isReadingRecipe: .constant(false))
                 }
             }
             .sheet(isPresented: $showingFavorites) {
@@ -332,10 +334,16 @@ struct RecipesView: View {
                     fridgeVM.fetchSuggestedRecipes()
                 }
             }
+            .onChange(of: accessibilityManager.voiceCommandDetected) { command in
+                if command == .readRecipe, let recipe = selectedRecipe {
+                    readRecipeAloud(recipe)
+                }
+            }
         }
         .overlay(
             ToastView(message: toastMessage, isShowing: $showingToast)
         )
+        .highContrastMode()
     }
     
     // State for dynamic loading
@@ -425,6 +433,12 @@ struct RecipesView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             showingToast = false
         }
+    }
+    
+    // Function to read recipe aloud
+    private func readRecipeAloud(_ recipe: Recipe) {
+        isReadingRecipe = true
+        accessibilityManager.speakRecipe(recipe)
     }
 }
 
@@ -655,12 +669,17 @@ struct FilterView: View {
 
 struct RecipeDetailView: View {
     let recipe: Recipe
+    @Binding var isReadingRecipe: Bool
+    @ObservedObject private var accessibilityManager = AccessibilityManager.shared
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var fridgeVM: FridgeViewModel
     @State private var showCookingMode = false
     @State private var showShareSheet = false
     @State private var showingToast = false
     @State private var toastMessage = ""
+    @State private var isAddedToFavorites = false
+    @State private var showingAddToShoppingList = false
+    @State private var ingredientQuantities: [String: Int] = [:]
     
     var body: some View {
         ScrollView {
@@ -849,6 +868,14 @@ struct RecipeDetailView: View {
         .overlay(
             ToastView(message: toastMessage, isShowing: $showingToast)
         )
+        .highContrastMode()
+        .onDisappear {
+            // Stop speaking if user dismisses the view
+            if isReadingRecipe {
+                accessibilityManager.stopSpeaking()
+                isReadingRecipe = false
+            }
+        }
     }
     
     private func showToast(_ message: String) {
@@ -1219,7 +1246,7 @@ struct FavoritesListView: View {
                 })
                 .sheet(isPresented: $showRecipeDetail) {
                     if let recipe = selectedRecipe {
-                        RecipeDetailView(recipe: recipe)
+                        RecipeDetailView(recipe: recipe, isReadingRecipe: .constant(false))
                     }
                 }
             }

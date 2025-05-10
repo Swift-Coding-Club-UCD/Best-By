@@ -41,10 +41,8 @@ struct MealPlanView: View {
                     // Weekly calendar view
                     weeklyCalendarView
                     
-                    // Today's meal section
-                    if let todaysMeal = getMealForDate(Date()) {
-                        todayMealView(todaysMeal)
-                    }
+                    // Today's meals section
+                    todaysMealsView
                     
                     // Upcoming meals section
                     upcomingMealsView
@@ -60,27 +58,27 @@ struct MealPlanView: View {
             }
             .sheet(isPresented: $showRecipeDetail) {
                 if let recipe = selectedRecipe {
-                    RecipeDetailView(recipe: recipe)
+                    RecipeDetailView(recipe: recipe, isReadingRecipe: .constant(false))
                 }
             }
         }
     }
     
     private var weeklyCalendarView: some View {
-        VStack(spacing: 10) {
-            // Month and year header with navigation arrows
+        VStack(spacing: 12) {
+            // Month and year title with navigation
             HStack {
                 Button(action: {
                     weekOffset -= 1
                 }) {
                     Image(systemName: "chevron.left")
+                        .foregroundColor(.primary)
                 }
                 
                 Spacer()
                 
                 Text(monthYearText)
                     .font(.headline)
-                    .foregroundColor(.primary)
                 
                 Spacer()
                 
@@ -88,11 +86,11 @@ struct MealPlanView: View {
                     weekOffset += 1
                 }) {
                     Image(systemName: "chevron.right")
+                        .foregroundColor(.primary)
                 }
             }
-            .padding(.horizontal)
             
-            // Weekday layout
+            // Day of week headers with date numbers
             HStack(spacing: 0) {
                 ForEach(daysInWeek(), id: \.self) { date in
                     Button(action: {
@@ -125,131 +123,36 @@ struct MealPlanView: View {
             .background(Color(UIColor.secondarySystemBackground))
             .cornerRadius(10)
             
-            if let selectedMeal = getMealForDate(selectedDate) {
-                // Selected date meal preview
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(dateFormatter.string(from: selectedDate))
-                            .font(.headline)
-                        
-                        Spacer()
-                        
-                        if !selectedMeal.isPrepared {
-                            Button(action: {
-                                fridgeVM.markMealAsCompleted(id: selectedMeal.id)
-                            }) {
-                                Label("Mark as Prepared", systemImage: "checkmark.circle")
-                                    .font(.caption)
-                            }
-                        }
-                    }
-                    
-                    HStack(alignment: .top) {
-                        AsyncImage(url: URL(string: selectedMeal.recipe.imageURL)) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            Color.gray.opacity(0.3)
-                        }
-                        .frame(width: 80, height: 80)
-                        .cornerRadius(8)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(selectedMeal.recipe.name)
-                                .font(.headline)
-                                .lineLimit(2)
-                            
-                            Label(selectedMeal.recipe.cookingTime, systemImage: "clock")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.top, 2)
-                            
-                            if selectedMeal.isPrepared {
-                                Text("Prepared")
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(Color.green.opacity(0.2))
-                                    .foregroundColor(.green)
-                                    .cornerRadius(4)
-                            }
-                        }
-                        
-                        Spacer()
-                    }
-                    .onTapGesture {
-                        selectedRecipe = selectedMeal.recipe
-                        showRecipeDetail = true
-                    }
-                }
-                .padding()
-                .background(Color(UIColor.secondarySystemBackground))
-                .cornerRadius(10)
-            } else {
-                // No meal planned for selected date
-                VStack(spacing: 12) {
-                    Text("No meal planned for \(dateFormatter.string(from: selectedDate))")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Button(action: {
-                        showingAddMeal = true
-                    }) {
-                        Label("Add Meal", systemImage: "plus")
-                            .font(.body)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(fridgeVM.currentAccentColor)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                    }
-                }
-                .padding()
-                .background(Color(UIColor.secondarySystemBackground))
-                .cornerRadius(10)
-            }
+            // Selected date meals view
+            selectedDateMealsView
         }
     }
     
-    private func todayMealView(_ meal: FridgeViewModel.MealPlan) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Today's Meal")
+    private var todaysMealsView: some View {
+        let todaysMeals = getMealsForDate(Date())
+        
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Today's Meals")
                 .font(.headline)
             
-            HStack(alignment: .top, spacing: 16) {
-                AsyncImage(url: URL(string: meal.recipe.imageURL)) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    Color.gray.opacity(0.3)
-                }
-                .frame(width: 100, height: 100)
-                .cornerRadius(10)
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(meal.recipe.name)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    
-                    HStack {
-                        Label(meal.recipe.cookingTime, systemImage: "clock")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Label(meal.recipe.difficulty, systemImage: "chart.bar.fill")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
+            if todaysMeals.isEmpty {
+                HStack {
                     Spacer()
                     
-                    if !meal.isPrepared {
+                    VStack(spacing: 12) {
+                        Image(systemName: "fork.knife")
+                            .font(.system(size: 40))
+                            .foregroundColor(.gray.opacity(0.5))
+                        
+                        Text("No meals planned for today")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
                         Button(action: {
-                            fridgeVM.markMealAsCompleted(id: meal.id)
+                            selectedDate = Date()
+                            showingAddMeal = true
                         }) {
-                            Text("Mark as Prepared")
+                            Text("Plan Today's Meal")
                                 .font(.callout)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 16)
@@ -257,24 +160,68 @@ struct MealPlanView: View {
                                 .background(fridgeVM.currentAccentColor)
                                 .cornerRadius(8)
                         }
-                    } else {
-                        Text("Prepared")
-                            .font(.caption)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.green.opacity(0.2))
-                            .foregroundColor(.green)
-                            .cornerRadius(6)
+                    }
+                    .padding(.vertical, 30)
+                    
+                    Spacer()
+                }
+                .background(Color(UIColor.secondarySystemBackground))
+                .cornerRadius(12)
+            } else {
+                ForEach(todaysMeals) { meal in
+                    HStack(alignment: .top) {
+                        Text(meal.mealType.rawValue)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .frame(width: 80, alignment: .leading)
+                        
+                        AsyncImage(url: URL(string: meal.recipe.imageURL)) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } placeholder: {
+                            Color.gray.opacity(0.3)
+                        }
+                        .frame(width: 60, height: 60)
+                        .cornerRadius(8)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(meal.recipe.name)
+                                .font(.headline)
+                                .lineLimit(1)
+                            
+                            Label(meal.recipe.cookingTime, systemImage: "clock")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        if !meal.isPrepared {
+                            Button(action: {
+                                fridgeVM.markMealAsCompleted(id: meal.id)
+                            }) {
+                                Text("Cook")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(fridgeVM.currentAccentColor)
+                                    .cornerRadius(8)
+                            }
+                        } else {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                        }
+                    }
+                    .padding()
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(10)
+                    .onTapGesture {
+                        selectedRecipe = meal.recipe
+                        showRecipeDetail = true
                     }
                 }
-            }
-            .padding()
-            .background(Color(UIColor.secondarySystemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            .onTapGesture {
-                selectedRecipe = meal.recipe
-                showRecipeDetail = true
             }
         }
     }
@@ -320,10 +267,16 @@ struct MealPlanView: View {
             } else {
                 ForEach(upcomingMeals) { meal in
                     HStack {
-                        Text(dateFormatter.string(from: meal.date))
-                            .font(.callout)
-                            .foregroundColor(.secondary)
-                            .frame(width: 120, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(dateFormatter.string(from: meal.date))
+                                .font(.callout)
+                                .foregroundColor(.primary)
+                            
+                            Text(meal.mealType.rawValue)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(width: 120, alignment: .leading)
                         
                         Text(meal.recipe.name)
                             .font(.body)
@@ -331,18 +284,30 @@ struct MealPlanView: View {
                         
                         Spacer()
                         
-                        Button(action: {
-                            // Edit meal plan
-                        }) {
-                            Image(systemName: "pencil")
-                                .foregroundColor(.gray)
-                        }
-                        
-                        Button(action: {
-                            fridgeVM.removeMealPlan(id: meal.id)
-                        }) {
-                            Image(systemName: "trash")
-                                .foregroundColor(.red)
+                        HStack(spacing: 8) {
+                            Button(action: {
+                                selectedRecipe = meal.recipe
+                                showRecipeDetail = true
+                            }) {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            Button(action: {
+                                // Edit meal - we could open the add meal sheet with this meal's data
+                                selectedDate = meal.date
+                                showingAddMeal = true
+                            }) {
+                                Image(systemName: "pencil")
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            Button(action: {
+                                fridgeVM.removeMealPlan(id: meal.id)
+                            }) {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
                         }
                     }
                     .padding()
@@ -405,6 +370,99 @@ struct MealPlanView: View {
         }
     }
     
+    private var selectedDateMealsView: some View {
+        let meals = getMealsForDate(selectedDate)
+        
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(dateFormatter.string(from: selectedDate))
+                    .font(.headline)
+                
+                Spacer()
+                
+                Button(action: {
+                    showingAddMeal = true
+                }) {
+                    Label("Add Meal", systemImage: "plus")
+                        .font(.caption)
+                        .foregroundColor(fridgeVM.currentAccentColor)
+                }
+            }
+            
+            if meals.isEmpty {
+                // No meal planned for selected date
+                VStack(spacing: 12) {
+                    Text("No meals planned")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        showingAddMeal = true
+                    }) {
+                        Label("Add Meal", systemImage: "plus")
+                            .font(.body)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(fridgeVM.currentAccentColor)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                }
+                .padding()
+                .background(Color(UIColor.secondarySystemBackground))
+                .cornerRadius(10)
+            } else {
+                // Display all meals for this date
+                ForEach(meals) { meal in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(meal.mealType.rawValue)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            Text(meal.recipe.name)
+                                .font(.body)
+                        }
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 12) {
+                            if !meal.isPrepared {
+                                Button(action: {
+                                    fridgeVM.markMealAsCompleted(id: meal.id)
+                                }) {
+                                    Image(systemName: "checkmark.circle")
+                                        .foregroundColor(.green)
+                                }
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
+                            
+                            Button(action: {
+                                selectedRecipe = meal.recipe
+                                showRecipeDetail = true
+                            }) {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            Button(action: {
+                                fridgeVM.removeMealPlan(id: meal.id)
+                            }) {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(10)
+                }
+            }
+        }
+    }
+    
     // MARK: - Helper Methods
     
     private let calendar = Calendar.current
@@ -439,10 +497,11 @@ struct MealPlanView: View {
         }
     }
     
-    private func getMealForDate(_ date: Date) -> FridgeViewModel.MealPlan? {
-        return fridgeVM.mealPlans.first { plan in
+    private func getMealsForDate(_ date: Date) -> [FridgeViewModel.MealPlan] {
+        return fridgeVM.mealPlans.filter { plan in
             calendar.isDate(plan.date, inSameDayAs: date)
         }
+        .sorted { $0.mealType.rawValue < $1.mealType.rawValue }
     }
     
     private func getUpcomingMeals() -> [FridgeViewModel.MealPlan] {
@@ -472,6 +531,7 @@ struct AddMealPlanView: View {
     @EnvironmentObject var fridgeVM: FridgeViewModel
     @State private var selectedDate = Date()
     @State private var selectedRecipe: Recipe?
+    @State private var selectedMealType: FridgeViewModel.MealPlan.MealType = .dinner
     @State private var filteredRecipes: [Recipe] = []
     @State private var searchText = ""
     @State private var showFullDatePicker = false
@@ -518,6 +578,24 @@ struct AddMealPlanView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 
+                // Meal type selection
+                HStack {
+                    Text("Meal Type:")
+                        .font(.headline)
+                    
+                    Spacer()
+                    
+                    Picker("Meal Type", selection: $selectedMealType) {
+                        ForEach(FridgeViewModel.MealPlan.MealType.allCases) { mealType in
+                            Text(mealType.rawValue).tag(mealType)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(maxWidth: 250)
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+                
                 Divider()
                     .padding(.vertical, 8)
                 
@@ -544,7 +622,7 @@ struct AddMealPlanView: View {
                 // Add button
                 Button(action: {
                     if let recipe = selectedRecipe {
-                        fridgeVM.addMealPlan(recipe: recipe, date: selectedDate)
+                        fridgeVM.addMealPlan(recipe: recipe, date: selectedDate, mealType: selectedMealType)
                         presentationMode.wrappedValue.dismiss()
                     }
                 }) {

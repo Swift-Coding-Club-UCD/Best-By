@@ -971,7 +971,7 @@ struct RecipesWithIngredientView: View {
                 presentationMode.wrappedValue.dismiss()
             })
             .sheet(item: $selectedRecipe) { recipe in
-                RecipeDetailView(recipe: recipe)
+                RecipeDetailView(recipe: recipe, isReadingRecipe: .constant(false))
                     .environmentObject(fridgeVM)
             }
             .onAppear {

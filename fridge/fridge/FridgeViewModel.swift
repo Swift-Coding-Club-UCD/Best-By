@@ -861,12 +861,22 @@ final class FridgeViewModel: ObservableObject {
         var date: Date
         var recipe: Recipe
         var isPrepared: Bool = false
+        var mealType: MealType = .dinner
+        
+        enum MealType: String, CaseIterable, Identifiable {
+            case breakfast = "Breakfast"
+            case lunch = "Lunch"
+            case dinner = "Dinner"
+            case snack = "Snack"
+            
+            var id: String { self.rawValue }
+        }
     }
     
     @Published var mealPlans: [MealPlan] = []
     
-    func addMealPlan(recipe: Recipe, date: Date) {
-        let newPlan = MealPlan(date: date, recipe: recipe)
+    func addMealPlan(recipe: Recipe, date: Date, mealType: MealPlan.MealType = .dinner) {
+        let newPlan = MealPlan(date: date, recipe: recipe, mealType: mealType)
         mealPlans.append(newPlan)
         // Sort plans by date
         mealPlans.sort { $0.date < $1.date }

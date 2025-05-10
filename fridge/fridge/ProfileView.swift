@@ -550,8 +550,7 @@ struct FavoritesView: View {
         .navigationTitle(selectedTab == 0 ? "Favorites" : "Recipe Folders")
         .sheet(isPresented: $showRecipeDetail) {
             if let recipe = selectedRecipe {
-                RecipeDetailView(recipe: recipe)
-                    .environmentObject(fridgeVM)
+                RecipeDetailView(recipe: recipe, isReadingRecipe: .constant(false))
             }
         }
         .alert("Create New Folder", isPresented: $showingAddFolder) {
@@ -744,8 +743,7 @@ struct RecipeFolderDetailView: View {
             .navigationTitle(folder.name)
             .sheet(isPresented: $showRecipeDetail) {
                 if let recipe = selectedRecipe {
-                    RecipeDetailView(recipe: recipe)
-                        .environmentObject(fridgeVM)
+                    RecipeDetailView(recipe: recipe, isReadingRecipe: .constant(false))
                 }
             }
         }
@@ -755,6 +753,8 @@ struct RecipeFolderDetailView: View {
 // MARK: - Preferences Tab
 struct PreferencesTab: View {
     @EnvironmentObject var fridgeVM: FridgeViewModel
+    @ObservedObject private var accessibilityManager = AccessibilityManager.shared
+    @State private var showingAccessibilityHelp = false
     
     var body: some View {
         VStack(spacing: 16) {
@@ -931,6 +931,52 @@ struct PreferencesTab: View {
             }
             .background(Color(UIColor.secondarySystemBackground))
             .cornerRadius(10)
+            
+            // Add a new accessibility section
+            SectionHeaderView(title: "Accessibility", icon: "accessibility")
+            
+            VStack(spacing: 0) {
+                Toggle("High Contrast Mode", isOn: Binding(
+                    get: { accessibilityManager.isHighContrastEnabled },
+                    set: { newValue in
+                        accessibilityManager.toggleHighContrastMode()
+                    }
+                ))
+                .padding()
+                
+                Divider().padding(.horizontal)
+                
+                Toggle("Voice Commands", isOn: Binding(
+                    get: { accessibilityManager.isVoiceEnabled },
+                    set: { newValue in
+                        accessibilityManager.toggleVoiceCommands()
+                    }
+                ))
+                .padding()
+                
+                if accessibilityManager.isVoiceEnabled {
+                    Divider().padding(.horizontal)
+                    
+                    Button(action: {
+                        showingAccessibilityHelp = true
+                    }) {
+                        HStack {
+                            Text("Voice Command Help")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .foregroundColor(.primary)
+                    .padding()
+                }
+            }
+            .background(Color(UIColor.secondarySystemBackground))
+            .cornerRadius(10)
+        }
+        .sheet(isPresented: $showingAccessibilityHelp) {
+            AccessibilityHelpView()
         }
     }
 }

@@ -12,6 +12,7 @@ struct AddItemView: View {
     @Environment(\.presentationMode) var presentationMode
 
     @State private var showScanner = false
+    @State private var showBarcodeScanner = false
     @State private var pickedImage: UIImage?
     @State private var name = ""
     @State private var expiration = ""
@@ -21,6 +22,9 @@ struct AddItemView: View {
     @State private var useDatePicker = false
     @State private var showValidationAlert = false
     @State private var validationMessage = ""
+    @State private var scannedBarcode = ""
+    @State private var isLoadingBarcodeInfo = false
+    @State private var loadingBarcodeFailed = false
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -31,7 +35,7 @@ struct AddItemView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Photo / Scan")) {
+                Section(header: Text("Scan Options")) {
                     if let img = pickedImage {
                         Image(uiImage: img)
                             .resizable()
@@ -40,10 +44,10 @@ struct AddItemView: View {
                             .cornerRadius(12)
                             .shadow(radius: 4)
                     }
+                    
                     HStack {
-                        Spacer()
                         Button(action: { showScanner = true }) {
-                            Label("Scan Item", systemImage: "camera.viewfinder")
+                            Label("Camera", systemImage: "camera.viewfinder")
                                 .font(.headline)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 20)
@@ -51,9 +55,45 @@ struct AddItemView: View {
                                 .background(Color.blue)
                                 .cornerRadius(10)
                         }
+                        
                         Spacer()
+                        
+                        Button(action: { showBarcodeScanner = true }) {
+                            Label("Barcode", systemImage: "barcode.viewfinder")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 12)
+                                .background(Color.green)
+                                .cornerRadius(10)
+                        }
                     }
                     .padding(.vertical, 8)
+                    
+                    if isLoadingBarcodeInfo {
+                        HStack {
+                            Spacer()
+                            ProgressView("Looking up product...")
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    
+                    if loadingBarcodeFailed {
+                        Text("Couldn't find product information")
+                            .foregroundColor(.red)
+                            .font(.subheadline)
+                            .padding(.vertical, 4)
+                    }
+                    
+                    if !scannedBarcode.isEmpty {
+                        HStack {
+                            Text("Barcode:")
+                            Spacer()
+                            Text(scannedBarcode)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
 
                 Section(header: Text("Details")) {
@@ -112,12 +152,46 @@ struct AddItemView: View {
                     detectedDate: $expiration
                 )
             }
+            .sheet(isPresented: $showBarcodeScanner) {
+                BarcodeScanner(scannedBarcode: $scannedBarcode, isShowingScanner: $showBarcodeScanner)
+                    .onDisappear {
+                        if !scannedBarcode.isEmpty {
+                            lookupBarcodeInfo(scannedBarcode)
+                        }
+                    }
+            }
             .alert(isPresented: $showValidationAlert) {
                 Alert(
                     title: Text("Invalid Date"),
                     message: Text(validationMessage),
                     dismissButton: .default(Text("OK"))
                 )
+            }
+        }
+    }
+    
+    private func lookupBarcodeInfo(_ barcode: String) {
+        isLoadingBarcodeInfo = true
+        loadingBarcodeFailed = false
+        
+        BarcodeService.shared.lookupBarcode(barcode) { productInfo in
+            isLoadingBarcodeInfo = false
+            
+            if let product = productInfo {
+                // Set form fields with product info
+                self.name = product.name
+                self.category = product.category
+                
+                // Set expiration date
+                let expirationDate = Calendar.current.date(byAdding: .day, value: product.expiryPeriodDays, to: Date()) ?? Date()
+                
+                if self.useDatePicker {
+                    self.selectedDate = expirationDate
+                } else {
+                    self.expiration = self.dateFormatter.string(from: expirationDate)
+                }
+            } else {
+                loadingBarcodeFailed = true
             }
         }
     }
