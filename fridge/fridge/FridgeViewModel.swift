@@ -32,6 +32,12 @@ final class FridgeViewModel: ObservableObject {
         loadDemoItems()
         createDefaultFolders()
         loadUserPreferences()
+        fetchSuggestedRecipes()
+        
+        // Ensure recipes are synchronized with fridge contents
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.synchronizeRecipeIngredientsWithFridge()
+        }
     }
     
     func add(item: FridgeItem) {
@@ -157,6 +163,13 @@ final class FridgeViewModel: ObservableObject {
                 id: UUID(),
                 name: "Simple Pasta",
                 imageURL: "https://spoonacular.com/recipeImages/654959-312x231.jpg",
+                ingredients: [
+                    Ingredient(name: "pasta", quantity: 0.5, unit: "lb"),
+                    Ingredient(name: "tomato", quantity: 2, unit: "pieces"),
+                    Ingredient(name: "olive oil", quantity: 2, unit: "tbsp"),
+                    Ingredient(name: "parmesan cheese", quantity: 0.25, unit: "cup"),
+                    Ingredient(name: "basil", quantity: 1, unit: "tbsp")
+                ],
                 usedIngredients: ["pasta", "tomato", "olive oil"],
                 missedIngredients: ["parmesan cheese", "basil"],
                 usedIngredientsDisplay: ["pasta", "tomato", "olive oil"],
@@ -169,6 +182,13 @@ final class FridgeViewModel: ObservableObject {
                 id: UUID(),
                 name: "Quick Omelette",
                 imageURL: "https://spoonacular.com/recipeImages/511728-312x231.jpg",
+                ingredients: [
+                    Ingredient(name: "eggs", quantity: 2, unit: "pieces"),
+                    Ingredient(name: "butter", quantity: 1, unit: "tbsp"),
+                    Ingredient(name: "salt", quantity: 0.5, unit: "tsp"),
+                    Ingredient(name: "cheese", quantity: 0.25, unit: "cup"),
+                    Ingredient(name: "herbs", quantity: 1, unit: "tbsp")
+                ],
                 usedIngredients: ["eggs", "butter", "salt"],
                 missedIngredients: ["cheese", "herbs"],
                 usedIngredientsDisplay: ["eggs", "butter", "salt"],
@@ -181,6 +201,13 @@ final class FridgeViewModel: ObservableObject {
                 id: UUID(),
                 name: "Simple Salad",
                 imageURL: "https://spoonacular.com/recipeImages/636228-312x231.jpg",
+                ingredients: [
+                    Ingredient(name: "lettuce", quantity: 1, unit: "head"),
+                    Ingredient(name: "cucumber", quantity: 1, unit: "piece"),
+                    Ingredient(name: "tomato", quantity: 2, unit: "pieces"),
+                    Ingredient(name: "dressing", quantity: 2, unit: "tbsp"),
+                    Ingredient(name: "croutons", quantity: 0.5, unit: "cup")
+                ],
                 usedIngredients: ["lettuce", "cucumber", "tomato"],
                 missedIngredients: ["dressing", "croutons"],
                 usedIngredientsDisplay: ["lettuce", "cucumber", "tomato"],
@@ -235,8 +262,8 @@ final class FridgeViewModel: ObservableObject {
     }
     
     // Shopping list methods
-    func addToShoppingList(name: String, quantity: Int = 1, note: String = "") {
-        let newItem = ShoppingItem(id: UUID(), name: name, quantity: quantity, note: note, isCompleted: false)
+    func addToShoppingList(name: String, quantity: Int = 1, note: String = "", recipeId: UUID? = nil, recipeName: String? = nil, recipeImageURL: String? = nil) {
+        let newItem = ShoppingItem(id: UUID(), name: name, quantity: quantity, note: note, isCompleted: false, recipeId: recipeId, recipeName: recipeName, recipeImageURL: recipeImageURL)
         shoppingList.append(newItem)
     }
     
@@ -247,7 +274,7 @@ final class FridgeViewModel: ObservableObject {
             
             // Check if the ingredient is already in the shopping list
             if !shoppingList.contains(where: { $0.name.lowercased() == name.lowercased() }) {
-                addToShoppingList(name: name, quantity: quantity)
+                addToShoppingList(name: name, quantity: quantity, recipeId: recipe.id, recipeName: recipe.name, recipeImageURL: recipe.imageURL)
             }
         }
     }
@@ -388,11 +415,49 @@ final class FridgeViewModel: ObservableObject {
         }
     }
     
+    // Update an existing item
     func update(item: FridgeItem) {
         // Find the index of the item
         if let index = items.firstIndex(where: { $0.id == item.id }) {
             // Update the item at that index
             items[index] = item
+        }
+    }
+    
+    // Update quantity for an existing item
+    func updateQuantity(for itemId: UUID, newQuantity: Int) {
+        if let index = items.firstIndex(where: { $0.id == itemId }) {
+            let currentItem = items[index]
+            let updatedItem = FridgeItem(
+                id: currentItem.id,
+                name: currentItem.name,
+                category: currentItem.category,
+                expirationDate: currentItem.expirationDate,
+                quantity: max(1, newQuantity) // Ensure quantity is at least 1
+            )
+            items[index] = updatedItem
+        }
+    }
+    
+    // Increment quantity of an item
+    func incrementQuantity(for itemId: UUID) {
+        if let index = items.firstIndex(where: { $0.id == itemId }) {
+            let currentItem = items[index]
+            updateQuantity(for: itemId, newQuantity: currentItem.quantity + 1)
+        }
+    }
+    
+    // Decrement quantity of an item
+    func decrementQuantity(for itemId: UUID) {
+        if let index = items.firstIndex(where: { $0.id == itemId }) {
+            let currentItem = items[index]
+            if currentItem.quantity > 1 {
+                updateQuantity(for: itemId, newQuantity: currentItem.quantity - 1)
+            } else {
+                // If quantity would become 0, ask user if they want to remove the item
+                // This would typically be handled in the UI layer
+                print("Item quantity cannot be less than 1")
+            }
         }
     }
     
@@ -987,5 +1052,141 @@ final class FridgeViewModel: ObservableObject {
     func updateProfileImageWithUIImage(_ image: UIImage) {
         // Store the image in userProfile
         userProfile.profileUIImage = image
+    }
+    
+    // Check if user has sufficient quantities of ingredients for a recipe
+    func hasEnoughIngredientsFor(recipe: Recipe) -> Bool {
+        let availableIngredients = items.filter { !isExpired(item: $0) }
+        
+        // Check each used ingredient in the recipe
+        for ingredient in recipe.usedIngredientsWithQuantity {
+            // Find matching ingredients in the fridge
+            let matchingItems = availableIngredients.filter { item in
+                item.name.lowercased().contains(ingredient.name.lowercased()) ||
+                ingredient.name.lowercased().contains(item.name.lowercased())
+            }
+            
+            // Calculate total available quantity
+            let totalAvailable = matchingItems.reduce(0) { $0 + $1.quantity }
+            
+            // If we don't have enough of this ingredient, return false
+            if totalAvailable < Int(ceil(ingredient.quantity)) {
+                return false
+            }
+        }
+        
+        // If we got here, we have enough of all ingredients
+        return true
+    }
+    
+    // Get a list of missing quantities for a recipe
+    func missingQuantitiesFor(recipe: Recipe) -> [(ingredient: String, have: Int, need: Int)] {
+        let availableIngredients = items.filter { !isExpired(item: $0) }
+        var missingQuantities: [(ingredient: String, have: Int, need: Int)] = []
+        
+        // Check each used and missed ingredient in the recipe
+        for ingredient in recipe.ingredients {
+            // Find matching ingredients in the fridge
+            let matchingItems = availableIngredients.filter { item in
+                item.name.lowercased().contains(ingredient.name.lowercased()) ||
+                ingredient.name.lowercased().contains(item.name.lowercased())
+            }
+            
+            // Calculate total available quantity
+            let totalAvailable = matchingItems.reduce(0) { $0 + $1.quantity }
+            let needed = Int(ceil(ingredient.quantity))
+            
+            // If we don't have enough of this ingredient, add it to the list
+            if totalAvailable < needed {
+                missingQuantities.append((
+                    ingredient: ingredient.name,
+                    have: totalAvailable,
+                    need: needed
+                ))
+            }
+        }
+        
+        return missingQuantities
+    }
+    
+    // Synchronize recipe ingredients with fridge contents considering quantities
+    func synchronizeRecipeIngredientsWithFridge() {
+        // Get valid ingredients with their quantities
+        let validItems = items.filter { !isExpired(item: $0) }
+        
+        // For each recipe, update its usedIngredients and missedIngredients
+        for i in 0..<suggestedRecipes.count {
+            var recipe = suggestedRecipes[i]
+            var newUsedIngredients: [String] = []
+            var newMissedIngredients: [String] = []
+            
+            // Check each ingredient
+            for ingredient in recipe.ingredients {
+                // Find matching ingredients in the fridge
+                let matchingItems = validItems.filter { item in
+                    item.name.lowercased().contains(ingredient.name.lowercased()) ||
+                    ingredient.name.lowercased().contains(item.name.lowercased())
+                }
+                
+                // Calculate total available quantity
+                let totalAvailable = matchingItems.reduce(0) { $0 + $1.quantity }
+                let needed = Int(ceil(ingredient.quantity))
+                
+                if totalAvailable >= needed {
+                    // We have enough of this ingredient
+                    newUsedIngredients.append(ingredient.name)
+                } else {
+                    // We need more of this ingredient
+                    newMissedIngredients.append(ingredient.name)
+                }
+            }
+            
+            // Create a new recipe with the updated lists
+            suggestedRecipes[i] = Recipe(
+                id: recipe.id,
+                name: recipe.name,
+                imageURL: recipe.imageURL,
+                ingredients: recipe.ingredients,
+                usedIngredients: newUsedIngredients,
+                missedIngredients: newMissedIngredients,
+                usedIngredientsDisplay: newUsedIngredients,
+                missedIngredientsDisplay: newMissedIngredients,
+                cookingTime: recipe.cookingTime,
+                difficulty: recipe.difficulty,
+                instructions: recipe.instructions
+            )
+        }
+        
+        print("Synchronized \(suggestedRecipes.count) recipes with fridge contents")
+    }
+    
+    // Check if a specific ingredient is available in sufficient quantity
+    func hasEnoughOf(ingredient: String, quantity: Int = 1) -> Bool {
+        let availableItems = items.filter { !isExpired(item: $0) }
+        
+        // Find matching items in the fridge
+        let matchingItems = availableItems.filter { item in
+            item.name.lowercased().contains(ingredient.lowercased()) ||
+            ingredient.lowercased().contains(item.name.lowercased())
+        }
+        
+        // Calculate total available quantity
+        let totalAvailable = matchingItems.reduce(0) { $0 + $1.quantity }
+        
+        return totalAvailable >= quantity
+    }
+    
+    // Get the available quantity of an ingredient
+    func availableQuantityOf(ingredient: String) -> Int {
+        let availableItems = items.filter { !isExpired(item: $0) }
+        
+        // Find matching items in the fridge
+        let matchingItems = availableItems.filter { item in
+            item.name.lowercased().contains(ingredient.lowercased()) ||
+            ingredient.lowercased().contains(item.name.lowercased())
+        }
+        
+        // Calculate total available quantity
+        return matchingItems.reduce(0) { $0 + $1.quantity }
     }
 }

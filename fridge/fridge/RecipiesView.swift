@@ -24,6 +24,7 @@ struct RecipesView: View {
     @State private var showingToast = false
     @State private var toastMessage = ""
     @State private var isReadingRecipe = false
+    @State private var filteredRecipes: [Recipe] = []
     
     // Recipe categories
     let categories = ["All", "Quick Meals", "Vegetarian", "Healthy", "Desserts"]
@@ -32,256 +33,40 @@ struct RecipesView: View {
         NavigationView {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                        TextField("Search recipes...", text: $searchQuery)
-                        
-                        if !searchQuery.isEmpty {
-                            Button(action: { 
-                                withAnimation {
-                                    searchQuery = ""
-                                }
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    .padding(10)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    .padding(.horizontal)
+                    // Search bar extracted to a separate view
+                    RecipeSearchBar(searchQuery: $searchQuery)
                     
-                    // Recipe categories with visual enhancements
-                    VStack(alignment: .leading) {
-                        Text("Categories")
-                            .font(.headline)
-                            .padding(.horizontal)
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 16) {
-                                ForEach(categories, id: \.self) { category in
-                                    Button(action: {
-                                        selectedCategory = category
-                                    }) {
-                                        VStack(spacing: 10) {
-                                            Image(systemName: iconForCategory(category))
-                                                .font(.system(size: 28))
-                                                .foregroundColor(selectedCategory == category ? .white : .blue)
-                                                .frame(width: 60, height: 60)
-                                                .background(
-                                                    Circle()
-                                                        .fill(selectedCategory == category ? Color.blue : Color.blue.opacity(0.1))
-                                                )
-                                            
-                                            Text(category)
-                                                .font(.caption)
-                                                .foregroundColor(selectedCategory == category ? .primary : .secondary)
-                                        }
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
+                    // Recipe categories extracted to a separate view
+                    CategorySelectionView(
+                        categories: categories, 
+                        selectedCategory: $selectedCategory,
+                        iconForCategory: iconForCategory
+                    )
                     
                     // Filters section with enhanced allergy filter
-                    VStack(spacing: 10) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Toggle("Hide Allergenic Recipes", isOn: $hideAllergenic)
-                                    .onChange(of: hideAllergenic) { newValue in
-                                        // Refresh recipes when toggling allergen filter
-                                        if newValue && !fridgeVM.userProfile.allergies.isEmpty {
-                                            refreshRecipes()
-                                        }
-                                    }
-                                    .toggleStyle(SwitchToggleStyle(tint: fridgeVM.currentAccentColor))
-                                    .font(.subheadline)
-                                
-                                if !hideAllergenic && !fridgeVM.userProfile.allergies.isEmpty {
-                                    Text("You have \(fridgeVM.userProfile.allergies.count) allergen\(fridgeVM.userProfile.allergies.count > 1 ? "s" : "") listed")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                hideAllergenic.toggle()
-                                // Also refresh recipes when clicking the shield button
-                                if hideAllergenic && !fridgeVM.userProfile.allergies.isEmpty {
-                                    refreshRecipes()
-                                }
-                            }) {
-                                Image(systemName: hideAllergenic ? "exclamationmark.shield.fill" : "exclamationmark.shield")
-                                    .font(.title3)
-                                    .foregroundColor(hideAllergenic ? .red : .secondary)
-                                    .padding(8)
-                                    .background(
-                                        Circle()
-                                            .fill(hideAllergenic ? Color.red.opacity(0.1) : Color(.systemGray6))
-                                    )
-                            }
-                        }
-                        
-                        if fridgeVM.userProfile.allergies.isEmpty {
-                            HStack {
-                                Text("No allergies configured")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Spacer()
-                                
-                                NavigationLink(destination: AllergensTab(showAddAllergy: .constant(false))) {
-                                    Text("Add allergies")
-                                        .font(.caption)
-                                        .foregroundColor(fridgeVM.currentAccentColor)
-                                }
-                            }
-                        }
-                        
-                        Divider()
-                        
-                        HStack {
-                            Text("Sort by:")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            Spacer()
-                            
-                            Menu {
-                                Button("Available Ingredients") {
-                                    fridgeVM.sortRecipesByAvailability()
-                                }
-                                Button("Alphabetical (A-Z)") {
-                                    fridgeVM.suggestedRecipes.sort { $0.name < $1.name }
-                                }
-                                Button("Cooking Time") {
-                                    // Implement time-based sorting
-                                }
-                            } label: {
-                                Label("Sort", systemImage: "arrow.up.arrow.down")
-                                    .font(.subheadline)
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(Color(.systemGray6).opacity(0.5))
-                    .cornerRadius(10)
-                    .padding(.horizontal)
+                    AllergyFilterView(
+                        hideAllergenic: $hideAllergenic,
+                        refreshRecipes: refreshRecipes,
+                        fridgeVM: fridgeVM
+                    )
                     
                     // Stats about filtered recipes
-                    if !fridgeVM.suggestedRecipes.isEmpty {
-                        HStack {
-                            Text("Showing \(displayedRecipes.count) of \(fridgeVM.suggestedRecipes.count) recipes")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Spacer()
-                            
-                            if hideAllergenic && !fridgeVM.userProfile.allergies.isEmpty {
-                                Text("Filtered \(fridgeVM.suggestedRecipes.count - displayedRecipes.count) allergenic recipes")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
+                    recipeStatsSection
                     
-                    if isRefreshing {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                                .padding()
-                            Spacer()
-                        }
-                    } else if displayedRecipes.isEmpty && !fridgeVM.suggestedRecipes.isEmpty {
-                        Text("No recipes match your search")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 30)
-                    } else if fridgeVM.suggestedRecipes.isEmpty {
-                        VStack(spacing: 20) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 50))
-                                .foregroundColor(.secondary)
-                            Text("Add ingredients to your fridge to get recipe suggestions")
-                                .font(.headline)
-                                .multilineTextAlignment(.center)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal)
-                            
-                            Button(action: {
-                                refreshRecipes()
-                            }) {
-                                Text("Refresh Suggestions")
-                                    .padding()
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(10)
-                            }
-                        }
-                        .padding(.top, 60)
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        // Dynamic recipes with lazy loading
-                        ForEach(displayedRecipes.prefix(maxRecipesToShow)) { recipe in
-                            Button(action: {
-                                selectedRecipe = recipe
-                                showRecipeDetail = true
-                            }) {
-                                RecipeSection(recipe: recipe, hasAllergens: fridgeVM.recipeContainsAllergens(recipe: recipe))
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .contextMenu {
-                                Button(action: {
-                                    fridgeVM.toggleFavorite(recipe: recipe)
-                                }) {
-                                    Label(
-                                        fridgeVM.isFavorite(recipe: recipe) ? "Remove from Favorites" : "Add to Favorites",
-                                        systemImage: fridgeVM.isFavorite(recipe: recipe) ? "heart.slash" : "heart"
-                                    )
-                                }
-                                
-                                Button(action: {
-                                    selectedRecipeForFolder = recipe
-                                    showingFolderSelector = true
-                                }) {
-                                    Label("Add to Folder", systemImage: "folder.badge.plus")
-                                }
-                                
-                                Button(action: {
-                                    fridgeVM.addMissingIngredientsToShoppingList(from: recipe)
-                                    showToast("Added \(recipe.missedIngredients.count) ingredients to shopping list")
-                                }) {
-                                    Label("Add Ingredients to Shopping List", systemImage: "cart.badge.plus")
-                                }
-                            }
-                        }
-                        
-                        // Load more button
-                        if displayedRecipes.count > maxRecipesToShow {
-                            Button(action: {
-                                loadMoreRecipes()
-                            }) {
-                                Text("Load More")
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.blue.opacity(0.1))
-                                    .foregroundColor(.blue)
-                                    .cornerRadius(10)
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
+                    // Recipe list or empty states
+                    RecipeListContentView(
+                        isRefreshing: isRefreshing,
+                        displayedRecipes: filteredRecipes,
+                        suggestedRecipes: fridgeVM.suggestedRecipes,
+                        onRefresh: refreshRecipes,
+                        onSelectRecipe: handleRecipeSelection,
+                        onToggleFavorite: handleToggleFavorite,
+                        onSelectFolder: handleFolderSelection,
+                        onAddToShoppingList: handleAddToShoppingList,
+                        maxRecipesToShow: maxRecipesToShow,
+                        loadMoreRecipes: loadMoreRecipes,
+                        fridgeVM: fridgeVM
+                    )
                 }
                 .padding(.vertical)
             }
@@ -291,59 +76,113 @@ struct RecipesView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showingFilterSheet = true
-                    }) {
-                        Image(systemName: "slider.horizontal.3")
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        refreshRecipes()
-                    }) {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                }
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        showingFavorites.toggle()
-                    }) {
-                        Image(systemName: showingFavorites ? "heart.fill" : "heart")
-                            .foregroundColor(showingFavorites ? .red : nil)
-                    }
+                    recipeMenuButton
                 }
             }
             .sheet(isPresented: $showingFilterSheet) {
                 FilterView()
             }
             .sheet(isPresented: $showRecipeDetail) {
-                if let recipe = selectedRecipe {
-                    RecipeDetailView(recipe: recipe, isReadingRecipe: .constant(false))
-                }
+                recipeDetailSheet
             }
             .sheet(isPresented: $showingFavorites) {
                 FavoritesListView(recipeFavorites: fridgeVM.favorites)
             }
             .sheet(isPresented: $showingFolderSelector) {
-                if let recipe = selectedRecipeForFolder {
-                    FolderSelectorView(recipe: recipe)
-                }
+                folderSelectorSheet
             }
             .onAppear {
-                if fridgeVM.suggestedRecipes.isEmpty {
-                    fridgeVM.fetchSuggestedRecipes()
-                }
+                handleViewAppear()
             }
+            .onChange(of: searchQuery) { _ in updateFilteredRecipes() }
+            .onChange(of: selectedCategory) { _ in updateFilteredRecipes() }
+            .onChange(of: hideAllergenic) { _ in updateFilteredRecipes() }
             .onChange(of: accessibilityManager.voiceCommandDetected) { command in
-                if command == .readRecipe, let recipe = selectedRecipe {
-                    readRecipeAloud(recipe)
-                }
+                handleVoiceCommand(command)
             }
         }
         .overlay(
             ToastView(message: toastMessage, isShowing: $showingToast)
         )
-        .highContrastMode()
+    }
+    
+    // MARK: - Subviews
+    
+    private var recipeStatsSection: some View {
+        Group {
+            if !fridgeVM.suggestedRecipes.isEmpty {
+                RecipeStatsView(
+                    displayedCount: filteredRecipes.count,
+                    totalCount: fridgeVM.suggestedRecipes.count,
+                    hideAllergenic: hideAllergenic,
+                    allergiesEmpty: fridgeVM.userProfile.allergies.isEmpty
+                )
+            }
+        }
+    }
+    
+    private var recipeMenuButton: some View {
+        Menu {
+            Button(action: {
+                showingFavorites.toggle()
+            }) {
+                Label("\(showingFavorites ? "Show All Recipes" : "Show Favorites")", 
+                      systemImage: showingFavorites ? "list.bullet" : "heart.fill")
+            }
+            
+            Button(action: {
+                refreshRecipes()
+            }) {
+                Label("Refresh Recipes", systemImage: "arrow.clockwise")
+            }
+            
+            Button(action: {
+                // Synchronize recipe ingredients with fridge
+                fridgeVM.synchronizeRecipeIngredientsWithFridge()
+                showToast("Recipes synchronized with fridge contents")
+            }) {
+                Label("Sync with Fridge", systemImage: "arrow.triangle.2.circlepath")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+    }
+    
+    private var recipeDetailSheet: some View {
+        Group {
+            if let recipe = selectedRecipe {
+                RecipeDetailView(recipe: recipe, isReadingRecipe: .constant(false))
+            }
+        }
+    }
+    
+    private var folderSelectorSheet: some View {
+        Group {
+            if let recipe = selectedRecipeForFolder {
+                FolderSelectorView(recipe: recipe)
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func handleViewAppear() {
+        if fridgeVM.suggestedRecipes.isEmpty {
+            fridgeVM.fetchSuggestedRecipes()
+        }
+        // Synchronize recipes with fridge when view appears
+        fridgeVM.synchronizeRecipeIngredientsWithFridge()
+        updateFilteredRecipes()
+        
+        // Set up timer to periodically update filtered recipes
+        // This replaces the direct array observation that required Equatable conformance
+        setupRecipeUpdateTimer()
+    }
+    
+    private func handleVoiceCommand(_ command: VoiceCommand?) {
+        if command == .readRecipe, let recipe = selectedRecipe {
+            readRecipeAloud(recipe)
+        }
     }
     
     // State for dynamic loading
@@ -353,60 +192,170 @@ struct RecipesView: View {
         maxRecipesToShow += 5
     }
     
-    private var displayedRecipes: [Recipe] {
-        var recipes = fridgeVM.suggestedRecipes
+    private func updateFilteredRecipes() {
+        // Get the current source recipes
+        let sourceRecipes = fridgeVM.suggestedRecipes
         
-        // Filter by category
-        if selectedCategory != "All" {
-            switch selectedCategory {
-            case "Quick Meals":
-                recipes = recipes.filter { $0.cookingTime.contains("min") }
-            case "Vegetarian":
-                recipes = recipes.filter { !$0.usedIngredients.contains { $0.lowercased().contains("meat") || $0.lowercased().contains("chicken") || $0.lowercased().contains("beef") || $0.lowercased().contains("pork") } }
-            case "Healthy":
-                recipes = recipes.filter { !$0.usedIngredients.contains { $0.lowercased().contains("sugar") || $0.lowercased().contains("cream") } }
-            case "Desserts":
-                recipes = recipes.filter { $0.usedIngredients.contains { $0.lowercased().contains("sugar") || $0.lowercased().contains("chocolate") || $0.lowercased().contains("ice cream") } }
-            default:
-                break
+        // Check if the source array has the same content
+        // This optimization prevents unnecessary filtering when nothing has changed
+        if sourceRecipes.count == 0 && filteredRecipes.count == 0 {
+            return
+        }
+        
+        var recipes = sourceRecipes
+        
+        // Apply category filter
+        recipes = filterByCategory(recipes)
+        
+        // Apply search query filter
+        recipes = filterBySearchQuery(recipes)
+        
+        // Apply allergy filter
+        recipes = filterByAllergies(recipes)
+        
+        // Only update filtered recipes if they've actually changed
+        // This prevents unnecessary view updates
+        if recipes.count != filteredRecipes.count {
+            self.filteredRecipes = recipes
+        }
+    }
+    
+    // Helper method to filter recipes by category
+    private func filterByCategory(_ recipes: [Recipe]) -> [Recipe] {
+        if selectedCategory == "All" {
+            return recipes
+        }
+        
+        switch selectedCategory {
+        case "Quick Meals":
+            return recipes.filter { $0.cookingTime.contains("min") }
+        case "Vegetarian":
+            return recipes.filter { recipe in
+                !hasNonVegetarianIngredients(recipe)
+            }
+        case "Healthy":
+            return recipes.filter { recipe in
+                !hasUnhealthyIngredients(recipe)
+            }
+        case "Desserts":
+            return recipes.filter { recipe in
+                hasDessertIngredients(recipe)
+            }
+        default:
+            return recipes
+        }
+    }
+    
+    // Helper method to check for non-vegetarian ingredients
+    private func hasNonVegetarianIngredients(_ recipe: Recipe) -> Bool {
+        let nonVegetarianTerms = ["meat", "chicken", "beef", "pork"]
+        
+        for term in nonVegetarianTerms {
+            for ingredient in recipe.usedIngredients {
+                if ingredient.lowercased().contains(term) {
+                    return true
+                }
             }
         }
         
-        // Filter by search query
-        if !searchQuery.isEmpty {
-            recipes = recipes.filter { 
-                $0.name.lowercased().contains(searchQuery.lowercased()) ||
-                $0.usedIngredients.joined().lowercased().contains(searchQuery.lowercased())
+        return false
+    }
+    
+    // Helper method to check for unhealthy ingredients
+    private func hasUnhealthyIngredients(_ recipe: Recipe) -> Bool {
+        let unhealthyTerms = ["sugar", "cream"]
+        
+        for term in unhealthyTerms {
+            for ingredient in recipe.usedIngredients {
+                if ingredient.lowercased().contains(term) {
+                    return true
+                }
             }
         }
         
-        // Filter by allergies
-        if hideAllergenic && !fridgeVM.userProfile.allergies.isEmpty {
-            recipes = recipes.filter { !fridgeVM.recipeContainsAllergens(recipe: $0) }
+        return false
+    }
+    
+    // Helper method to check for dessert ingredients
+    private func hasDessertIngredients(_ recipe: Recipe) -> Bool {
+        let dessertTerms = ["sugar", "chocolate", "ice cream"]
+        
+        for term in dessertTerms {
+            for ingredient in recipe.usedIngredients {
+                if ingredient.lowercased().contains(term) {
+                    return true
+                }
+            }
         }
         
-        return recipes
+        return false
+    }
+    
+    // Helper method to filter recipes by search query
+    private func filterBySearchQuery(_ recipes: [Recipe]) -> [Recipe] {
+        if searchQuery.isEmpty {
+            return recipes
+        } else {
+            return recipes.filter { recipe in
+                let nameMatch = recipe.name.localizedCaseInsensitiveContains(searchQuery)
+                let usedIngredientsMatch = recipe.usedIngredients.contains(where: { 
+                    $0.localizedCaseInsensitiveContains(searchQuery) 
+                })
+                let missedIngredientsMatch = recipe.missedIngredients.contains(where: { 
+                    $0.localizedCaseInsensitiveContains(searchQuery) 
+                })
+                
+                return nameMatch || usedIngredientsMatch || missedIngredientsMatch
+            }
+        }
+    }
+    
+    // Helper method to filter recipes by allergies
+    private func filterByAllergies(_ recipes: [Recipe]) -> [Recipe] {
+        if !hideAllergenic || fridgeVM.userProfile.allergies.isEmpty {
+            return recipes
+        } else {
+            let userAllergies = fridgeVM.userProfile.allergies.map { $0.name.lowercased() }
+            
+            return recipes.filter { recipe in
+                // Check if recipe doesn't contain any allergenic ingredients
+                let hasNoAllergenicIngredients = !containsAllergenicIngredients(
+                    recipe.usedIngredients, 
+                    userAllergies: userAllergies
+                )
+                
+                return hasNoAllergenicIngredients
+            }
+        }
+    }
+    
+    // Helper method to check if ingredients contain allergens
+    private func containsAllergenicIngredients(_ ingredients: [String], userAllergies: [String]) -> Bool {
+        for ingredient in ingredients {
+            let lowercasedIngredient = ingredient.lowercased()
+            
+            for allergy in userAllergies {
+                if lowercasedIngredient.contains(allergy) {
+                    return true
+                }
+            }
+        }
+        
+        return false
     }
     
     private func refreshRecipes() {
         isRefreshing = true
         
-        // Reset filters first to ensure we see new content
-        searchQuery = ""
-        
-        // Clear the existing recipes to ensure we get fresh ones
-        DispatchQueue.main.async {
-            self.fridgeVM.suggestedRecipes = []
-        }
-        
-        // Fetch new recipes with a slight delay to ensure UI updates
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            self.fridgeVM.fetchSuggestedRecipes()
+        // Simulate network delay if needed
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            // Fetch new recipes
+            fridgeVM.fetchSuggestedRecipes()
             
-            // Hide loading indicator after a delay for better UX
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.7) {
-                self.isRefreshing = false
-            }
+            // Synchronize with fridge contents
+            fridgeVM.synchronizeRecipeIngredientsWithFridge()
+            
+            isRefreshing = false
         }
     }
     
@@ -440,6 +389,411 @@ struct RecipesView: View {
         isReadingRecipe = true
         accessibilityManager.speakRecipe(recipe)
     }
+    
+    // Additional view components to break up complexity
+    
+    // Search bar component
+    struct RecipeSearchBar: View {
+        @Binding var searchQuery: String
+        
+        var body: some View {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("Search recipes...", text: $searchQuery)
+                
+                if !searchQuery.isEmpty {
+                    Button(action: { 
+                        withAnimation {
+                            searchQuery = ""
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(10)
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+            .padding(.horizontal)
+        }
+    }
+    
+    // Category selection component
+    struct CategorySelectionView: View {
+        let categories: [String]
+        @Binding var selectedCategory: String
+        let iconForCategory: (String) -> String
+        
+        var body: some View {
+            VStack(alignment: .leading) {
+                categoryTitle
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    categoryButtons
+                }
+            }
+        }
+        
+        // Extract title into a separate view
+        private var categoryTitle: some View {
+            Text("Categories")
+                .font(.headline)
+                .padding(.horizontal)
+        }
+        
+        // Extract category buttons into a separate view
+        private var categoryButtons: some View {
+            HStack(spacing: 16) {
+                ForEach(categories, id: \.self) { category in
+                    categoryButton(for: category)
+                }
+            }
+            .padding(.horizontal)
+        }
+        
+        // Create a single category button
+        private func categoryButton(for category: String) -> some View {
+            Button(action: {
+                selectedCategory = category
+            }) {
+                VStack(spacing: 10) {
+                    // Icon with background
+                    categoryIcon(for: category)
+                    
+                    // Category name
+                    categoryLabel(for: category)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        
+        // Extract icon view
+        private func categoryIcon(for category: String) -> some View {
+            let isSelected = selectedCategory == category
+            
+            return Image(systemName: iconForCategory(category))
+                .font(.system(size: 28))
+                .foregroundColor(isSelected ? .white : .blue)
+                .frame(width: 60, height: 60)
+                .background(
+                    Circle()
+                        .fill(isSelected ? Color.blue : Color.blue.opacity(0.1))
+                )
+        }
+        
+        // Extract label view
+        private func categoryLabel(for category: String) -> some View {
+            let isSelected = selectedCategory == category
+            
+            return Text(category)
+                .font(.caption)
+                .foregroundColor(isSelected ? .primary : .secondary)
+        }
+    }
+    
+    // Allergy filter component
+    struct AllergyFilterView: View {
+        @Binding var hideAllergenic: Bool
+        let refreshRecipes: () -> Void
+        @ObservedObject var fridgeVM: FridgeViewModel
+        
+        var body: some View {
+            VStack(spacing: 10) {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Toggle("Hide Allergenic Recipes", isOn: $hideAllergenic)
+                            .onChange(of: hideAllergenic) { newValue in
+                                // Refresh recipes when toggling allergen filter
+                                if newValue && !fridgeVM.userProfile.allergies.isEmpty {
+                                    refreshRecipes()
+                                }
+                            }
+                            .toggleStyle(SwitchToggleStyle(tint: fridgeVM.currentAccentColor))
+                            .font(.subheadline)
+                        
+                        if !hideAllergenic && !fridgeVM.userProfile.allergies.isEmpty {
+                            Text("You have \(fridgeVM.userProfile.allergies.count) allergen\(fridgeVM.userProfile.allergies.count > 1 ? "s" : "") listed")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        hideAllergenic.toggle()
+                        // Also refresh recipes when clicking the shield button
+                        if hideAllergenic && !fridgeVM.userProfile.allergies.isEmpty {
+                            refreshRecipes()
+                        }
+                    }) {
+                        Image(systemName: hideAllergenic ? "exclamationmark.shield.fill" : "exclamationmark.shield")
+                            .font(.title3)
+                            .foregroundColor(hideAllergenic ? .red : .secondary)
+                            .padding(8)
+                            .background(
+                                Circle()
+                                    .fill(hideAllergenic ? Color.red.opacity(0.1) : Color(.systemGray6))
+                            )
+                    }
+                }
+                
+                if fridgeVM.userProfile.allergies.isEmpty {
+                    HStack {
+                        Text("No allergies configured")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        NavigationLink(destination: AllergensTab(showAddAllergy: .constant(false))) {
+                            Text("Add allergies")
+                                .font(.caption)
+                                .foregroundColor(fridgeVM.currentAccentColor)
+                        }
+                    }
+                }
+                
+                Divider()
+                
+                HStack {
+                    Text("Sort by:")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Menu {
+                        Button("Available Ingredients") {
+                            fridgeVM.sortRecipesByAvailability()
+                        }
+                        Button("Alphabetical (A-Z)") {
+                            fridgeVM.suggestedRecipes.sort { $0.name < $1.name }
+                        }
+                        Button("Cooking Time") {
+                            // Implement time-based sorting
+                        }
+                    } label: {
+                        Label("Sort", systemImage: "arrow.up.arrow.down")
+                            .font(.subheadline)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color(.systemGray6).opacity(0.5))
+            .cornerRadius(10)
+            .padding(.horizontal)
+        }
+    }
+    
+    // Stats view component
+    struct RecipeStatsView: View {
+        let displayedCount: Int
+        let totalCount: Int
+        let hideAllergenic: Bool
+        let allergiesEmpty: Bool
+        
+        var body: some View {
+            HStack {
+                Text("Showing \(displayedCount) of \(totalCount) recipes")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                if hideAllergenic && !allergiesEmpty {
+                    Text("Filtered \(totalCount - displayedCount) allergenic recipes")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    // Content view for recipe list or empty states
+    struct RecipeListContentView: View {
+        let isRefreshing: Bool
+        let displayedRecipes: [Recipe]
+        let suggestedRecipes: [Recipe]
+        let onRefresh: () -> Void
+        let onSelectRecipe: (Recipe) -> Void
+        let onToggleFavorite: (Recipe) -> Void
+        let onSelectFolder: (Recipe) -> Void
+        let onAddToShoppingList: (Recipe) -> Void
+        let maxRecipesToShow: Int
+        let loadMoreRecipes: () -> Void
+        @ObservedObject var fridgeVM: FridgeViewModel
+        
+        var body: some View {
+            Group {
+                if isRefreshing {
+                    loadingView
+                } else if displayedRecipes.isEmpty && !suggestedRecipes.isEmpty {
+                    emptySearchResultsView
+                } else if suggestedRecipes.isEmpty {
+                    noRecipesView
+                } else {
+                    recipeListView
+                }
+            }
+        }
+        
+        // Loading indicator
+        private var loadingView: some View {
+            HStack {
+                Spacer()
+                ProgressView()
+                    .padding()
+                Spacer()
+            }
+        }
+        
+        // View when search returns no results
+        private var emptySearchResultsView: some View {
+            Text("No recipes match your search")
+                .font(.headline)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 30)
+        }
+        
+        // View when there are no recipe suggestions
+        private var noRecipesView: some View {
+            VStack(spacing: 20) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 50))
+                    .foregroundColor(.secondary)
+                
+                Text("Add ingredients to your fridge to get recipe suggestions")
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
+                
+                refreshButton
+            }
+            .padding(.top, 60)
+            .frame(maxWidth: .infinity)
+        }
+        
+        // Refresh button
+        private var refreshButton: some View {
+            Button(action: {
+                onRefresh()
+            }) {
+                Text("Refresh Suggestions")
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+        }
+        
+        // Recipe list with load more button
+        private var recipeListView: some View {
+            VStack {
+                // Recipe list
+                ForEach(displayedRecipes.prefix(maxRecipesToShow)) { recipe in
+                    recipeButton(for: recipe)
+                }
+                
+                // Load more button if needed
+                if displayedRecipes.count > maxRecipesToShow {
+                    loadMoreButton
+                }
+            }
+        }
+        
+        // Button for a single recipe
+        private func recipeButton(for recipe: Recipe) -> some View {
+            Button(action: {
+                onSelectRecipe(recipe)
+            }) {
+                RecipeSection(recipe: recipe, hasAllergens: fridgeVM.recipeContainsAllergens(recipe: recipe))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+            .contextMenu {
+                recipeContextMenu(for: recipe)
+            }
+        }
+        
+        // Context menu for a recipe
+        @ViewBuilder
+        private func recipeContextMenu(for recipe: Recipe) -> some View {
+            let isFavorite = fridgeVM.isFavorite(recipe: recipe)
+            
+            Button(action: {
+                onToggleFavorite(recipe)
+            }) {
+                Label(
+                    isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                    systemImage: isFavorite ? "heart.slash" : "heart"
+                )
+            }
+            
+            Button(action: {
+                onSelectFolder(recipe)
+            }) {
+                Label("Add to Folder", systemImage: "folder.badge.plus")
+            }
+            
+            Button(action: {
+                onAddToShoppingList(recipe)
+            }) {
+                Label("Add Ingredients to Shopping List", systemImage: "cart.badge.plus")
+            }
+        }
+        
+        // Load more button
+        private var loadMoreButton: some View {
+            Button(action: {
+                loadMoreRecipes()
+            }) {
+                Text("Load More")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(10)
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    // MARK: - Handler Methods
+    
+    private func handleRecipeSelection(recipe: Recipe) {
+        selectedRecipe = recipe
+        showRecipeDetail = true
+    }
+    
+    private func handleToggleFavorite(recipe: Recipe) {
+        fridgeVM.toggleFavorite(recipe: recipe)
+    }
+    
+    private func handleFolderSelection(recipe: Recipe) {
+        selectedRecipeForFolder = recipe
+        showingFolderSelector = true
+    }
+    
+    private func handleAddToShoppingList(recipe: Recipe) {
+        fridgeVM.addMissingIngredientsToShoppingList(from: recipe)
+        showToast("Added \(recipe.missedIngredients.count) ingredients to shopping list")
+    }
+    
+    // Timer to update recipes when underlying data might have changed
+    private func setupRecipeUpdateTimer() {
+        // Create a timer that fires every 3 seconds to check for updates
+        // This is less frequent to avoid excessive updates but still responsive enough
+        Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            self.updateFilteredRecipes()
+        }
+    }
 }
 
 struct RecipeSection: View {
@@ -451,30 +805,7 @@ struct RecipeSection: View {
         VStack(alignment: .leading, spacing: 0) {
             // Image section with allergen warning overlay if needed
             ZStack(alignment: .topTrailing) {
-                AsyncImage(url: URL(string: recipe.imageURL)) { phase in
-                    if let image = phase.image {
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(height: 200)
-                            .clipped()
-                    } else if phase.error != nil {
-                        Color.gray // Error state
-                            .frame(height: 200)
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.white)
-                            )
-                    } else {
-                        ZStack {
-                            Color.gray.opacity(0.3)
-                                .frame(height: 200)
-                            ProgressView() // Loading state
-                        }
-                    }
-                }
-                .cornerRadius(12)
+                recipeImageView
                 
                 // Allergen warning badge
                 if hasAllergens && !fridgeVM.userProfile.allergies.isEmpty {
@@ -482,78 +813,131 @@ struct RecipeSection: View {
                 }
             }
             
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(recipe.name)
-                        .font(.headline)
-                        .lineLimit(1)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        fridgeVM.toggleFavorite(recipe: recipe)
-                    }) {
-                        Image(systemName: fridgeVM.isFavorite(recipe: recipe) ? "heart.fill" : "heart")
-                            .foregroundColor(fridgeVM.isFavorite(recipe: recipe) ? .red : .gray)
-                    }
-                }
-                
-                // Additional recipe info (time, difficulty)
-                HStack(spacing: 12) {
-                    Label(recipe.cookingTime, systemImage: "clock")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Label(recipe.difficulty, systemImage: "chart.bar")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                // Allergen warning text for accessibility
-                if hasAllergens && !fridgeVM.userProfile.allergies.isEmpty {
-                    allergenWarningText
-                }
-                
-                // Ingredients badges
-                VStack(alignment: .leading, spacing: 8) {
-                    if !recipe.usedIngredients.isEmpty {
-                        Text("From your fridge:")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        FlowLayout(mode: .scrollable, items: recipe.usedIngredients) { ingredient in
-                            Text(ingredient)
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Capsule().fill(Color.green.opacity(0.2)))
-                                .foregroundColor(.green)
-                        }
-                    }
-                    
-                    if !recipe.missedIngredients.isEmpty {
-                        Text("You'll need:")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.top, 4)
-                        
-                        FlowLayout(mode: .scrollable, items: recipe.missedIngredients) { ingredient in
-                            Text(ingredient)
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Capsule().fill(Color.orange.opacity(0.2)))
-                                .foregroundColor(.orange)
-                        }
-                    }
-                }
-            }
-            .padding(12)
+            recipeDetailsView
         }
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .gray.opacity(0.2), radius: 5, y: 2)
         .padding(.horizontal)
+    }
+    
+    // MARK: - Subviews
+    
+    private var recipeImageView: some View {
+        AsyncImage(url: URL(string: recipe.imageURL)) { phase in
+            if let image = phase.image {
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 200)
+                    .clipped()
+            } else if phase.error != nil {
+                errorImagePlaceholder
+            } else {
+                loadingImagePlaceholder
+            }
+        }
+        .cornerRadius(12)
+    }
+    
+    private var errorImagePlaceholder: some View {
+        Color.gray // Error state
+            .frame(height: 200)
+            .overlay(
+                Image(systemName: "photo")
+                    .font(.largeTitle)
+                    .foregroundColor(.white)
+            )
+    }
+    
+    private var loadingImagePlaceholder: some View {
+        ZStack {
+            Color.gray.opacity(0.3)
+                .frame(height: 200)
+            ProgressView() // Loading state
+        }
+    }
+    
+    private var recipeDetailsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            recipeHeaderView
+            
+            // Additional recipe info (time, difficulty)
+            recipeInfoView
+            
+            // Allergen warning text for accessibility
+            if hasAllergens && !fridgeVM.userProfile.allergies.isEmpty {
+                allergenWarningText
+            }
+            
+            // Ingredients badges
+            ingredientsBadgesView
+        }
+        .padding(12)
+    }
+    
+    private var recipeHeaderView: some View {
+        HStack {
+            Text(recipe.name)
+                .font(.headline)
+                .lineLimit(1)
+            
+            Spacer()
+            
+            Button(action: {
+                fridgeVM.toggleFavorite(recipe: recipe)
+            }) {
+                Image(systemName: fridgeVM.isFavorite(recipe: recipe) ? "heart.fill" : "heart")
+                    .foregroundColor(fridgeVM.isFavorite(recipe: recipe) ? .red : .gray)
+            }
+        }
+    }
+    
+    private var recipeInfoView: some View {
+        HStack(spacing: 12) {
+            Label(recipe.cookingTime, systemImage: "clock")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Label(recipe.difficulty, systemImage: "chart.bar")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var ingredientsBadgesView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !recipe.usedIngredientsWithQuantity.isEmpty {
+                Text("From your fridge:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                FlowLayout(mode: .scrollable, items: recipe.usedIngredientsWithQuantity) { ingredient in
+                    Text(ingredient.displayText)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.green.opacity(0.2)))
+                        .foregroundColor(.green)
+                }
+            }
+            
+            if !recipe.missedIngredientsWithQuantity.isEmpty {
+                Text("You'll need:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+                
+                FlowLayout(mode: .scrollable, items: recipe.missedIngredientsWithQuantity) { ingredient in
+                    Text(ingredient.displayText)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.orange.opacity(0.2)))
+                        .foregroundColor(.orange)
+                }
+            }
+        }
     }
     
     // Allergen warning badge
@@ -685,153 +1069,26 @@ struct RecipeDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Recipe header with image
-                AsyncImage(url: URL(string: recipe.imageURL)) { phase in
-                    if let image = phase.image {
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(height: 250)
-                            .clipped()
-                    } else if phase.error != nil {
-                        Color.gray
-                            .frame(height: 250)
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.white)
-                            )
-                    } else {
-                        ZStack {
-                            Color.gray.opacity(0.3)
-                                .frame(height: 250)
-                            ProgressView()
-                        }
-                    }
-                }
+                recipeHeaderImage
                 
                 VStack(alignment: .leading, spacing: 16) {
                     // Recipe title and cooking info
-                    Text(recipe.name)
-                        .font(.title)
-                        .fontWeight(.bold)
+                    recipeTitleView
                     
-                    HStack(spacing: 16) {
-                        Label(recipe.cookingTime, systemImage: "clock")
-                        
-                        Divider()
-                            .frame(height: 20)
-                        
-                        Label(recipe.difficulty, systemImage: "speedometer")
-                    }
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    recipeCookingInfoView
                     
                     Divider()
                     
                     // Ingredients section
-                    Text("Ingredients")
-                        .font(.headline)
-                        .padding(.top, 4)
-                    
-                    // Used ingredients (available in fridge)
-                    if !recipe.usedIngredients.isEmpty {
-                        Text("Available in your fridge:")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
-                        ForEach(recipe.usedIngredientsDisplay, id: \.self) { ingredient in
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                Text(ingredient)
-                            }
-                        }
-                        .padding(.leading, 8)
-                    }
-                    
-                    // Missing ingredients (not in fridge)
-                    if !recipe.missedIngredients.isEmpty {
-                        Text("Missing ingredients:")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.top, 8)
-                        
-                        ForEach(recipe.missedIngredientsDisplay, id: \.self) { ingredient in
-                            HStack {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.red)
-                                Text(ingredient)
-                            }
-                        }
-                        .padding(.leading, 8)
-                    }
+                    recipeIngredientsSection
                     
                     Divider()
                     
                     // Preview of cooking instructions
-                    Text("Cooking Instructions")
-                        .font(.headline)
-                    
-                    // Display first two steps as preview
-                    if !recipe.instructions.isEmpty {
-                        ForEach(recipe.instructions.prefix(2).indices, id: \.self) { index in
-                            HStack(alignment: .top) {
-                                Text("\(index + 1).")
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.secondary)
-                                Text(recipe.instructions[index])
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            .padding(.leading, 4)
-                            .padding(.bottom, 4)
-                        }
-                        
-                        // If there are more steps, show a note
-                        if recipe.instructions.count > 2 {
-                            Text("+ \(recipe.instructions.count - 2) more steps")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.top, 4)
-                        }
-                    } else {
-                        Text("Tap 'Start Cooking' to see instructions")
-                            .foregroundColor(.secondary)
-                    }
+                    recipeCookingInstructionsSection
                     
                     // Action buttons
-                    VStack(spacing: 16) {
-                        Button(action: {
-                            showCookingMode = true
-                        }) {
-                            HStack {
-                                Image(systemName: "play.circle.fill")
-                                Text("Start Cooking")
-                                    .fontWeight(.semibold)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                        }
-                        
-                        Button(action: {
-                            fridgeVM.addMissingIngredientsToShoppingList(from: recipe)
-                            showToast("Added \(recipe.missedIngredients.count) ingredients to shopping list")
-                        }) {
-                            HStack {
-                                Image(systemName: "cart.badge.plus")
-                                Text("Add Missing to Shopping List")
-                                    .fontWeight(.semibold)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(.systemGray5))
-                            .foregroundColor(.primary)
-                            .cornerRadius(12)
-                        }
-                    }
-                    .padding(.top, 16)
+                    recipeActionButtons
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 32)
@@ -840,26 +1097,10 @@ struct RecipeDetailView: View {
         .edgesIgnoringSafeArea(.top)
         .navigationBarTitle("", displayMode: .inline)
         .navigationBarItems(
-            leading: Button(action: {
+            leading: BackButton {
                 presentationMode.wrappedValue.dismiss()
-            }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
             },
-            trailing: HStack {
-                Button(action: {
-                    showShareSheet = true
-                }) {
-                    Image(systemName: "square.and.arrow.up")
-                }
-                
-                Button(action: {
-                    fridgeVM.toggleFavorite(recipe: recipe)
-                }) {
-                    Image(systemName: fridgeVM.isFavorite(recipe: recipe) ? "heart.fill" : "heart")
-                        .foregroundColor(fridgeVM.isFavorite(recipe: recipe) ? .red : .primary)
-                }
-            }
+            trailing: recipeActionToolbarItems
         )
         .fullScreenCover(isPresented: $showCookingMode) {
             CookingModeView(recipe: recipe)
@@ -868,12 +1109,219 @@ struct RecipeDetailView: View {
         .overlay(
             ToastView(message: toastMessage, isShowing: $showingToast)
         )
-        .highContrastMode()
         .onDisappear {
             // Stop speaking if user dismisses the view
             if isReadingRecipe {
                 accessibilityManager.stopSpeaking()
                 isReadingRecipe = false
+            }
+        }
+    }
+    
+    // MARK: - Subviews
+    
+    private var recipeHeaderImage: some View {
+        AsyncImage(url: URL(string: recipe.imageURL)) { phase in
+            if let image = phase.image {
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 250)
+                    .clipped()
+            } else if phase.error != nil {
+                recipeImageErrorPlaceholder
+            } else {
+                recipeImageLoadingPlaceholder
+            }
+        }
+    }
+    
+    private var recipeImageErrorPlaceholder: some View {
+        Color.gray
+            .frame(height: 250)
+            .overlay(
+                Image(systemName: "photo")
+                    .font(.largeTitle)
+                    .foregroundColor(.white)
+            )
+    }
+    
+    private var recipeImageLoadingPlaceholder: some View {
+        ZStack {
+            Color.gray.opacity(0.3)
+                .frame(height: 250)
+            ProgressView()
+        }
+    }
+    
+    private var recipeTitleView: some View {
+        Text(recipe.name)
+            .font(.title)
+            .fontWeight(.bold)
+    }
+    
+    private var recipeCookingInfoView: some View {
+        HStack(spacing: 16) {
+            Label(recipe.cookingTime, systemImage: "clock")
+            
+            Divider()
+                .frame(height: 20)
+            
+            Label(recipe.difficulty, systemImage: "speedometer")
+        }
+        .font(.subheadline)
+        .foregroundColor(.secondary)
+    }
+    
+    private var recipeIngredientsSection: some View {
+        VStack(alignment: .leading) {
+            Text("Ingredients")
+                .font(.headline)
+                .padding(.top, 4)
+            
+            // Used ingredients (available in fridge)
+            if !recipe.usedIngredients.isEmpty {
+                availableIngredientsView
+            }
+            
+            // Missing ingredients (not in fridge)
+            if !recipe.missedIngredients.isEmpty {
+                missingIngredientsView
+            }
+        }
+    }
+    
+    private var availableIngredientsView: some View {
+        VStack(alignment: .leading) {
+            Text("Available in your fridge:")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            ForEach(recipe.usedIngredientsWithQuantity, id: \.id) { ingredient in
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text(ingredient.displayText)
+                }
+            }
+            .padding(.leading, 8)
+        }
+    }
+    
+    private var missingIngredientsView: some View {
+        VStack(alignment: .leading) {
+            Text("Missing ingredients:")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.top, 8)
+            
+            ForEach(recipe.missedIngredientsWithQuantity, id: \.id) { ingredient in
+                HStack {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.red)
+                    Text(ingredient.displayText)
+                }
+            }
+            .padding(.leading, 8)
+        }
+    }
+    
+    private var recipeCookingInstructionsSection: some View {
+        VStack(alignment: .leading) {
+            Text("Cooking Instructions")
+                .font(.headline)
+            
+            // Display first two steps as preview
+            if !recipe.instructions.isEmpty {
+                instructionStepsPreview
+            } else {
+                Text("Tap 'Start Cooking' to see instructions")
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private var instructionStepsPreview: some View {
+        VStack(alignment: .leading) {
+            ForEach(recipe.instructions.prefix(2).indices, id: \.self) { index in
+                HStack(alignment: .top) {
+                    Text("\(index + 1).")
+                        .fontWeight(.bold)
+                        .foregroundColor(.secondary)
+                    Text(recipe.instructions[index])
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.leading, 4)
+                .padding(.bottom, 4)
+            }
+            
+            // If there are more steps, show a note
+            if recipe.instructions.count > 2 {
+                Text("+ \(recipe.instructions.count - 2) more steps")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+            }
+        }
+    }
+    
+    private var recipeActionButtons: some View {
+        VStack(spacing: 16) {
+            Button(action: {
+                showCookingMode = true
+            }) {
+                startCookingButton
+            }
+            
+            Button(action: {
+                fridgeVM.addMissingIngredientsToShoppingList(from: recipe)
+                showToast("Added \(recipe.missedIngredients.count) ingredients to shopping list")
+            }) {
+                addToShoppingListButton
+            }
+        }
+        .padding(.top, 16)
+    }
+    
+    private var startCookingButton: some View {
+        HStack {
+            Image(systemName: "play.circle.fill")
+            Text("Start Cooking")
+                .fontWeight(.semibold)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color.blue)
+        .foregroundColor(.white)
+        .cornerRadius(12)
+    }
+    
+    private var addToShoppingListButton: some View {
+        HStack {
+            Image(systemName: "cart.badge.plus")
+            Text("Add Missing to Shopping List")
+                .fontWeight(.semibold)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color(.systemGray5))
+        .foregroundColor(.primary)
+        .cornerRadius(12)
+    }
+    
+    private var recipeActionToolbarItems: some View {
+        HStack {
+            Button(action: {
+                showShareSheet = true
+            }) {
+                Image(systemName: "square.and.arrow.up")
+            }
+            
+            Button(action: {
+                fridgeVM.toggleFavorite(recipe: recipe)
+            }) {
+                Image(systemName: fridgeVM.isFavorite(recipe: recipe) ? "heart.fill" : "heart")
+                    .foregroundColor(fridgeVM.isFavorite(recipe: recipe) ? .red : .primary)
             }
         }
     }
@@ -918,6 +1366,17 @@ struct RecipeDetailView: View {
     }
 }
 
+struct BackButton: View {
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 17, weight: .semibold))
+        }
+    }
+}
+
 struct CookingModeView: View {
     let recipe: Recipe
     @Environment(\.presentationMode) var presentationMode
@@ -929,156 +1388,39 @@ struct CookingModeView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header with navigation
-            HStack {
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .bold))
-                        .padding()
-                        .foregroundColor(.primary)
-                }
-                
-                Spacer()
-                
-                Text("Step \(currentStep + 1) of \(recipe.instructions.count)")
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                Button(action: {
-                    // Finish cooking
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("Finish")
-                        .font(.system(size: 17, weight: .semibold))
-                        .padding()
-                        .foregroundColor(.blue)
-                }
-            }
-            .padding(.horizontal)
-            .background(Color(.systemBackground).opacity(0.95))
-            .zIndex(1)
+            cookingModeHeader
             
             // Progress bar
-            GeometryReader { geo in
-                Rectangle()
-                    .fill(Color.blue)
-                    .frame(width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(recipe.instructions.count))
-                    .frame(height: 4)
-            }
-            .frame(height: 4)
+            cookingProgressBar
             
             // Main content
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     // Recipe title
-                    Text(recipe.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.horizontal)
-                        .padding(.top)
+                    recipeTitleView
                     
                     // Toggle ingredients
-                    HStack {
-                        Toggle("Show Ingredients", isOn: $showingIngredients)
-                            .toggleStyle(SwitchToggleStyle(tint: .blue))
-                    }
-                    .padding(.horizontal)
+                    ingredientsToggle
                     
                     // Ingredients list (collapsible)
                     if showingIngredients {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(recipe.usedIngredients + recipe.missedIngredients, id: \.self) { ingredient in
-                                Text("• \(ingredient)")
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
+                        ingredientsList
                     }
                     
                     Divider()
                         .padding(.horizontal)
                     
                     // Current step instruction
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Step \(currentStep + 1)")
-                            .font(.headline)
-                            .foregroundColor(.blue)
-                        
-                        Text(recipe.instructions[currentStep])
-                            .font(.body)
-                            .lineSpacing(6)
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+                    currentStepView
                     
                     // Timer buttons (optional)
                     if !timerRunning && remainingTime == 0 {
-                        HStack(spacing: 16) {
-                            Button(action: { startTimer(minutes: 1) }) {
-                                Text("+ 1 min")
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 12)
-                                    .background(Color.blue.opacity(0.2))
-                                    .cornerRadius(8)
-                            }
-                            
-                            Button(action: { startTimer(minutes: 5) }) {
-                                Text("+ 5 min")
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 12)
-                                    .background(Color.blue.opacity(0.2))
-                                    .cornerRadius(8)
-                            }
-                            
-                            Button(action: { startTimer(minutes: 10) }) {
-                                Text("+ 10 min")
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 12)
-                                    .background(Color.blue.opacity(0.2))
-                                    .cornerRadius(8)
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
+                        timerButtonsView
                     }
                     
                     // Timer display
                     if timerRunning || remainingTime > 0 {
-                        VStack {
-                            Text(formatTime(remainingTime))
-                                .font(.system(size: 48, weight: .semibold, design: .monospaced))
-                                .foregroundColor(timerRunning ? .blue : .secondary)
-                            
-                            HStack(spacing: 24) {
-                                Button(action: {
-                                    timerRunning.toggle()
-                                }) {
-                                    Text(timerRunning ? "Pause" : "Resume")
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 16)
-                                        .background(Color.blue.opacity(0.2))
-                                        .cornerRadius(8)
-                                }
-                                
-                                Button(action: {
-                                    timerRunning = false
-                                    remainingTime = 0
-                                }) {
-                                    Text("Cancel")
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 16)
-                                        .background(Color.red.opacity(0.2))
-                                        .cornerRadius(8)
-                                }
-                            }
-                        }
-                        .padding(.vertical, 16)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
-                        .padding(.horizontal)
+                        timerDisplayView
                     }
                     
                     Spacer(minLength: 40)
@@ -1087,61 +1429,220 @@ struct CookingModeView: View {
             }
             
             // Navigation buttons at bottom
-            VStack {
-                Divider()
-                
-                HStack(spacing: 20) {
-                    Button(action: {
-                        if currentStep > 0 {
-                            currentStep -= 1
-                        }
-                    }) {
-                        HStack {
-                            Image(systemName: "chevron.left")
-                            Text("Previous")
-                        }
-                        .opacity(currentStep > 0 ? 1.0 : 0.5)
-                        .padding()
-                        .foregroundColor(.primary)
-                    }
-                    .disabled(currentStep == 0)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        if currentStep < recipe.instructions.count - 1 {
-                            currentStep += 1
-                        } else {
-                            // Last step, finish cooking
-                            presentationMode.wrappedValue.dismiss()
-                        }
-                    }) {
-                        HStack {
-                            Text(currentStep < recipe.instructions.count - 1 ? "Next" : "Finish")
-                            Image(systemName: "chevron.right")
-                        }
-                        .padding()
-                        .foregroundColor(.blue)
-                        .fontWeight(.semibold)
-                    }
-                }
-                .padding(.horizontal)
-            }
-            .background(Color(.systemBackground).opacity(0.95))
+            cookingNavigationButtons
         }
         .onAppear {
-            // Start a timer for updating countdown
-            Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
-                if timerRunning && remainingTime > 0 {
-                    remainingTime -= 1
-                    
-                    // Notify when timer completes
-                    if remainingTime == 0 {
-                        timerRunning = false
-                        // Using haptic feedback for timer completion
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
-                    }
+            setupTimerUpdates()
+        }
+    }
+    
+    // MARK: - Subviews
+    
+    private var cookingModeHeader: some View {
+        HStack {
+            Button(action: {
+                presentationMode.wrappedValue.dismiss()
+            }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 17, weight: .bold))
+                    .padding()
+                    .foregroundColor(.primary)
+            }
+            
+            Spacer()
+            
+            Text("Step \(currentStep + 1) of \(recipe.instructions.count)")
+                .fontWeight(.semibold)
+            
+            Spacer()
+            
+            Button(action: {
+                // Finish cooking
+                presentationMode.wrappedValue.dismiss()
+            }) {
+                Text("Finish")
+                    .font(.system(size: 17, weight: .semibold))
+                    .padding()
+                    .foregroundColor(.blue)
+            }
+        }
+        .padding(.horizontal)
+        .background(Color(.systemBackground).opacity(0.95))
+        .zIndex(1)
+    }
+    
+    private var cookingProgressBar: some View {
+        GeometryReader { geo in
+            Rectangle()
+                .fill(Color.blue)
+                .frame(width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(recipe.instructions.count))
+                .frame(height: 4)
+        }
+        .frame(height: 4)
+    }
+    
+    private var recipeTitleView: some View {
+        Text(recipe.name)
+            .font(.title2)
+            .fontWeight(.bold)
+            .padding(.horizontal)
+            .padding(.top)
+    }
+    
+    private var ingredientsToggle: some View {
+        HStack {
+            Toggle("Show Ingredients", isOn: $showingIngredients)
+                .toggleStyle(SwitchToggleStyle(tint: .blue))
+        }
+        .padding(.horizontal)
+    }
+    
+    private var ingredientsList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(recipe.ingredients, id: \.id) { ingredient in
+                Text("• \(ingredient.displayText)")
+            }
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+    }
+    
+    private var currentStepView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Step \(currentStep + 1)")
+                .font(.headline)
+                .foregroundColor(.blue)
+            
+            Text(recipe.instructions[currentStep])
+                .font(.body)
+                .lineSpacing(6)
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+    
+    private var timerButtonsView: some View {
+        HStack(spacing: 16) {
+            timerButton(minutes: 1)
+            timerButton(minutes: 5)
+            timerButton(minutes: 10)
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+    
+    private func timerButton(minutes: Int) -> some View {
+        Button(action: { startTimer(minutes: minutes) }) {
+            Text("+ \(minutes) min")
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(Color.blue.opacity(0.2))
+                .cornerRadius(8)
+        }
+    }
+    
+    private var timerDisplayView: some View {
+        VStack {
+            Text(formatTime(remainingTime))
+                .font(.system(size: 48, weight: .semibold, design: .monospaced))
+                .foregroundColor(timerRunning ? .blue : .secondary)
+            
+            HStack(spacing: 24) {
+                Button(action: {
+                    timerRunning.toggle()
+                }) {
+                    Text(timerRunning ? "Pause" : "Resume")
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .background(Color.blue.opacity(0.2))
+                        .cornerRadius(8)
+                }
+                
+                Button(action: {
+                    timerRunning = false
+                    remainingTime = 0
+                }) {
+                    Text("Cancel")
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .background(Color.red.opacity(0.2))
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+    
+    private var cookingNavigationButtons: some View {
+        VStack {
+            Divider()
+            
+            HStack(spacing: 20) {
+                previousStepButton
+                
+                Spacer()
+                
+                nextStepButton
+            }
+            .padding(.horizontal)
+        }
+        .background(Color(.systemBackground).opacity(0.95))
+    }
+    
+    private var previousStepButton: some View {
+        Button(action: {
+            if currentStep > 0 {
+                currentStep -= 1
+            }
+        }) {
+            HStack {
+                Image(systemName: "chevron.left")
+                Text("Previous")
+            }
+            .opacity(currentStep > 0 ? 1.0 : 0.5)
+            .padding()
+            .foregroundColor(.primary)
+        }
+        .disabled(currentStep == 0)
+    }
+    
+    private var nextStepButton: some View {
+        Button(action: {
+            if currentStep < recipe.instructions.count - 1 {
+                currentStep += 1
+            } else {
+                // Last step, finish cooking
+                presentationMode.wrappedValue.dismiss()
+            }
+        }) {
+            HStack {
+                Text(currentStep < recipe.instructions.count - 1 ? "Next" : "Finish")
+                Image(systemName: "chevron.right")
+            }
+            .padding()
+            .foregroundColor(.blue)
+            .fontWeight(.semibold)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func setupTimerUpdates() {
+        // Start a timer for updating countdown
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            if timerRunning && remainingTime > 0 {
+                remainingTime -= 1
+                
+                // Notify when timer completes
+                if remainingTime == 0 {
+                    timerRunning = false
+                    // Using haptic feedback for timer completion
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.success)
                 }
             }
         }
@@ -1319,3 +1820,4 @@ struct ToastView: View {
         }
     }
 }
+

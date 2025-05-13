@@ -75,14 +75,56 @@ enum ExpiryStatus {
     }
 }
 
+// Add a new struct for ingredients with quantities
+struct Ingredient: Identifiable, Hashable {
+    let id: UUID = UUID()
+    let name: String
+    let quantity: Double
+    let unit: String
+    
+    init(name: String, quantity: Double = 1.0, unit: String = "") {
+        self.name = name
+        self.quantity = quantity
+        self.unit = unit
+    }
+    
+    var displayText: String {
+        if quantity == 0 || unit.isEmpty {
+            return name
+        } else if quantity == 1 && unit == "piece" {
+            return name
+        } else {
+            return "\(formattedQuantity) \(unit) \(name)"
+        }
+    }
+    
+    var formattedQuantity: String {
+        if quantity.truncatingRemainder(dividingBy: 1) == 0 {
+            return "\(Int(quantity))"
+        } else {
+            return String(format: "%.1f", quantity)
+        }
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: Ingredient, rhs: Ingredient) -> Bool {
+        return lhs.id == rhs.id
+    }
+}
+
+// Modify the Recipe struct to use the new Ingredient type
 struct Recipe: Identifiable {
     let id: UUID
     let name: String
     let imageURL: String
-    let usedIngredients: [String]
-    let missedIngredients: [String]
-    let usedIngredientsDisplay: [String]
-    let missedIngredientsDisplay: [String]
+    var ingredients: [Ingredient] // All ingredients with quantities
+    let usedIngredients: [String] // Keep for compatibility
+    let missedIngredients: [String] // Keep for compatibility
+    let usedIngredientsDisplay: [String] // Keep for compatibility
+    let missedIngredientsDisplay: [String] // Keep for compatibility
     var cookingTime: String = "30 min"
     var difficulty: String = "Easy"
     var imageName: String = "placeholder_food"
@@ -92,6 +134,23 @@ struct Recipe: Identifiable {
         "Transfer to a baking dish and bake for 30 minutes.",
         "Let cool for 5 minutes before serving."
     ]
+    
+    // Computed properties to access ingredients with quantities
+    var usedIngredientsWithQuantity: [Ingredient] {
+        ingredients.filter { ingredient in
+            usedIngredients.contains { used in
+                ingredient.name.lowercased().contains(used.lowercased())
+            }
+        }
+    }
+    
+    var missedIngredientsWithQuantity: [Ingredient] {
+        ingredients.filter { ingredient in
+            missedIngredients.contains { missed in
+                ingredient.name.lowercased().contains(missed.lowercased())
+            }
+        }
+    }
 }
 
 struct ShoppingItem: Identifiable {
@@ -100,6 +159,9 @@ struct ShoppingItem: Identifiable {
     var quantity: Int
     var note: String
     var isCompleted: Bool
+    var recipeId: UUID?
+    var recipeName: String?
+    var recipeImageURL: String?
     
     var displayQuantity: String {
         return quantity > 1 ? "\(quantity)x" : ""

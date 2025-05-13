@@ -182,6 +182,39 @@ struct FridgeView: View {
                                         
                                         Spacer()
                                         
+                                        // Quantity display
+                                        HStack(spacing: 0) {
+                                            Button(action: {
+                                                if item.quantity > 1 {
+                                                    fridgeVM.decrementQuantity(for: item.id)
+                                                }
+                                            }) {
+                                                Image(systemName: "minus.circle")
+                                                    .foregroundColor(.blue)
+                                                    .font(.system(size: 18))
+                                            }
+                                            .buttonStyle(BorderlessButtonStyle())
+                                            .disabled(item.quantity <= 1)
+                                            
+                                            Text("\(item.quantity)")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .frame(minWidth: 30)
+                                                .padding(.horizontal, 6)
+                                            
+                                            Button(action: {
+                                                fridgeVM.incrementQuantity(for: item.id)
+                                            }) {
+                                                Image(systemName: "plus.circle")
+                                                    .foregroundColor(.blue)
+                                                    .font(.system(size: 18))
+                                            }
+                                            .buttonStyle(BorderlessButtonStyle())
+                                        }
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 4)
+                                        .background(Color(.systemGray6))
+                                        .cornerRadius(8)
+                                        
                                         VStack(alignment: .trailing, spacing: 4) {
                                             Text(dateFormatter.string(from: item.expirationDate))
                                                 .font(.system(size: 14))
@@ -331,6 +364,19 @@ struct FridgeView: View {
                             fridgeVM.removeExpired()
                         } label: {
                             Label("Remove Expired Items", systemImage: "trash")
+                        }
+                        
+                        Button(action: {
+                            // Sync fridge contents with recipes
+                            fridgeVM.synchronizeRecipeIngredientsWithFridge()
+                            // Show a toast message or notification
+                            selectedItem = nil  // Reset selection to trigger a view update
+                            // Display feedback to user
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                            impactFeedback.prepare()
+                            impactFeedback.impactOccurred()
+                        }) {
+                            Label("Sync with Recipes", systemImage: "arrow.triangle.2.circlepath")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")

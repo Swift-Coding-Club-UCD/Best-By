@@ -117,10 +117,26 @@ class RecipeService {
                     
                     // Fetch detailed information for each recipe
                     self.fetchRecipeDetails(id: spoonRecipe.id) { details in
+                        // Extract ingredients with quantities
+                        var ingredients: [Ingredient] = []
+                        
+                        // Process used ingredients
+                        for ingredient in spoonRecipe.usedIngredients {
+                            let (name, quantity, unit) = self.extractIngredientInfo(ingredient.name)
+                            ingredients.append(Ingredient(name: name, quantity: quantity, unit: unit))
+                        }
+                        
+                        // Process missed ingredients
+                        for ingredient in spoonRecipe.missedIngredients {
+                            let (name, quantity, unit) = self.extractIngredientInfo(ingredient.name)
+                            ingredients.append(Ingredient(name: name, quantity: quantity, unit: unit))
+                        }
+                        
                         let recipe = Recipe(
                             id: UUID(),
                             name: spoonRecipe.title,
                             imageURL: spoonRecipe.image,
+                            ingredients: ingredients,
                             usedIngredients: spoonRecipe.usedIngredients.map { $0.name },
                             missedIngredients: spoonRecipe.missedIngredients.map { $0.name },
                             usedIngredientsDisplay: spoonRecipe.usedIngredients.map { self.cleanIngredientForDisplay($0.name) },
@@ -233,6 +249,86 @@ class RecipeService {
         default: return "Advanced"
         }
     }
+    
+    // Extract quantity, unit, and clean name from an ingredient string
+    private func extractIngredientInfo(_ ingredientString: String) -> (name: String, quantity: Double, unit: String) {
+        // Default values
+        var quantity: Double = 1.0
+        var unit: String = ""
+        var name = cleanIngredientForDisplay(ingredientString)
+        
+        // Common units to identify
+        let units = ["cup", "cups", "tablespoon", "tablespoons", "tbsp", "teaspoon", "teaspoons", "tsp", 
+                     "ounce", "ounces", "oz", "pound", "pounds", "lb", "lbs", "gram", "grams", "g", 
+                     "kilogram", "kg", "ml", "milliliter", "liter", "l", "slice", "slices", "piece", "pieces"]
+        
+        // Extract quantity and unit using regular expressions
+        let quantityPattern = #"^([\d/\.]+|\w+)"#
+        let unitPattern = #"(?:[\d/\.]+|\w+)\s+(\w+)"#
+        
+        if let quantityRegex = try? NSRegularExpression(pattern: quantityPattern, options: []),
+           let quantityMatch = quantityRegex.firstMatch(in: ingredientString, options: [], range: NSRange(ingredientString.startIndex..., in: ingredientString)) {
+            
+            // Extract the quantity string
+            if let quantityRange = Range(quantityMatch.range(at: 1), in: ingredientString) {
+                let quantityString = String(ingredientString[quantityRange])
+                
+                // Convert the quantity string to a number
+                if let numericQuantity = Double(quantityString) {
+                    quantity = numericQuantity
+                } else if quantityString.contains("/") {
+                    // Handle fractions like "1/2"
+                    let components = quantityString.components(separatedBy: "/")
+                    if components.count == 2, 
+                       let numerator = Double(components[0]), 
+                       let denominator = Double(components[1]),
+                       denominator > 0 {
+                        quantity = numerator / denominator
+                    }
+                } else {
+                    // Handle word quantities like "one", "two"
+                    let wordToNumber: [String: Double] = [
+                        "a": 1.0, "an": 1.0, "one": 1.0, "two": 2.0, "three": 3.0, 
+                        "four": 4.0, "five": 5.0, "six": 6.0, "seven": 7.0, "eight": 8.0
+                    ]
+                    quantity = wordToNumber[quantityString.lowercased()] ?? 1.0
+                }
+            }
+        }
+        
+        // Try to extract the unit
+        if let unitRegex = try? NSRegularExpression(pattern: unitPattern, options: []),
+           let unitMatch = unitRegex.firstMatch(in: ingredientString, options: [], range: NSRange(ingredientString.startIndex..., in: ingredientString)) {
+            
+            if let unitRange = Range(unitMatch.range(at: 1), in: ingredientString) {
+                let unitCandidate = String(ingredientString[unitRange]).lowercased()
+                
+                // Check if the extracted string is a valid unit
+                if units.contains(unitCandidate) {
+                    unit = unitCandidate
+                    
+                    // Standardize some units
+                    if ["tablespoon", "tablespoons"].contains(unit) {
+                        unit = "tbsp"
+                    } else if ["teaspoon", "teaspoons"].contains(unit) {
+                        unit = "tsp"
+                    } else if ["ounce", "ounces"].contains(unit) {
+                        unit = "oz"
+                    } else if ["pound", "pounds"].contains(unit) {
+                        unit = "lb"
+                    } else if ["gram", "grams"].contains(unit) {
+                        unit = "g"
+                    } else if ["slice", "slices"].contains(unit) {
+                        unit = "slice"
+                    } else if ["piece", "pieces"].contains(unit) {
+                        unit = "piece"
+                    }
+                }
+            }
+        }
+        
+        return (name, quantity, unit)
+    }
 }
 
     // MARK: - Helper Models
@@ -240,11 +336,20 @@ class RecipeService {
         let id: Int
         let title: String
         let image: String
-        let usedIngredients: [Ingredient]
-        let missedIngredients: [Ingredient]
+        let usedIngredients: [SpoonacularIngredient]
+        let missedIngredients: [SpoonacularIngredient]
+        
+        // Make sure all fields have proper coding keys
+        enum CodingKeys: String, CodingKey {
+            case id
+            case title
+            case image
+            case usedIngredients = "usedIngredients"
+            case missedIngredients = "missedIngredients"
+        }
     }
     
-    struct Ingredient: Decodable {
+    struct SpoonacularIngredient: Decodable {
         let name: String
         
         enum CodingKeys: String, CodingKey {
