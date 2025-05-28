@@ -399,9 +399,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AAVB324H37;
+				DEVELOPMENT_TEAM = 4KA29UUTT4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/fridge/Info.plist\n";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Best-By needs microphone access to enable voice commands and speech recognition features.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Best-By uses speech recognition to enable voice commands for hands-free control of the app.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -430,9 +431,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AAVB324H37;
+				DEVELOPMENT_TEAM = 4KA29UUTT4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/fridge/Info.plist\n";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Best-By needs microphone access to enable voice commands and speech recognition features.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Best-By uses speech recognition to enable voice commands for hands-free control of the app.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
