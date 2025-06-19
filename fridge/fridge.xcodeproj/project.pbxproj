@@ -29,15 +29,32 @@
 		883E645E2DAF4EFE00FA7F66 /* fridgeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = fridgeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D7169D492DE69EB10016777D /* Exceptions for "fridge" folder in "fridge" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				fridgeTests.swift,
+				Info.plist,
+			);
+			target = 883E64462DAF4EFD00FA7F66 /* fridge */;
+		};
+		D7169D4D2DE6A0100016777D /* Exceptions for "fridge" folder in "fridgeTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				fridgeTests.swift,
+			);
+			target = 883E64532DAF4EFE00FA7F66 /* fridgeTests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		883E64492DAF4EFD00FA7F66 /* fridge */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D7169D492DE69EB10016777D /* Exceptions for "fridge" folder in "fridge" target */,
+				D7169D4D2DE6A0100016777D /* Exceptions for "fridge" folder in "fridgeTests" target */,
+			);
 			path = fridge;
-			sourceTree = "<group>";
-		};
-		883E64572DAF4EFE00FA7F66 /* fridgeTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = fridgeTests;
 			sourceTree = "<group>";
 		};
 		883E64612DAF4EFE00FA7F66 /* fridgeUITests */ = {
@@ -76,7 +93,6 @@
 			isa = PBXGroup;
 			children = (
 				883E64492DAF4EFD00FA7F66 /* fridge */,
-				883E64572DAF4EFE00FA7F66 /* fridgeTests */,
 				883E64612DAF4EFE00FA7F66 /* fridgeUITests */,
 				883E64482DAF4EFD00FA7F66 /* Products */,
 			);
@@ -129,9 +145,6 @@
 			);
 			dependencies = (
 				883E64562DAF4EFE00FA7F66 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				883E64572DAF4EFE00FA7F66 /* fridgeTests */,
 			);
 			name = fridgeTests;
 			packageProductDependencies = (
@@ -401,8 +414,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4KA29UUTT4;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "$(SRCROOT)/Info.plist\n";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "$(SRCROOT)/fridge/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Best-By";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Best-By needs microphone access to enable voice commands and speech recognition features.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Best-By uses speech recognition to enable voice commands for hands-free control of the app.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -433,8 +447,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4KA29UUTT4;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "$(SRCROOT)/Info.plist\n";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "$(SRCROOT)/fridge/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Best-By";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Best-By needs microphone access to enable voice commands and speech recognition features.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Best-By uses speech recognition to enable voice commands for hands-free control of the app.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

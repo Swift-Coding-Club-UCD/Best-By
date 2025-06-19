@@ -40,7 +40,6 @@ struct HomeView: View {
                 }
                 .padding(.vertical)
             }
-            .navigationBarHidden(true)
             .onAppear {
                 // Trigger animations
                 withAnimation(.easeOut(duration: 0.8)) {
