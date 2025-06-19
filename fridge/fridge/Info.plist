@@ -1,24 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-    <dict>
-        <key>CFBundleIdentifier</key>
-        <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-
-        <key>CFBundleExecutable</key>
-        <string>fridge</string>
-
-        <key>CFBundleName</key>
-        <string>fridge</string>
-
-        <key>NSCameraUsageDescription</key>
-        <string>This app uses the camera to scan items.</string>
-
-        <key>NSPhotoLibraryUsageDescription</key>
-        <string>This app uses the photo library to select images.</string>
-
-        <key>UILaunchStoryboardName</key>
-        <string>LaunchScreen</string>
-    </dict>
-
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleExecutable</key>
+	<string>Best-By</string>
+	<key>CFBundleName</key>
+	<string>Best-By</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to scan items.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app uses the photo library to select images.</string>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+</dict>
 </plist>

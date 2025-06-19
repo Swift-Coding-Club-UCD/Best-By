@@ -24,7 +24,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		883E64472DAF4EFD00FA7F66 /* fridge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = fridge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		883E64472DAF4EFD00FA7F66 /* Best-By.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Best-By.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		883E64542DAF4EFE00FA7F66 /* fridgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = fridgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		883E645E2DAF4EFE00FA7F66 /* fridgeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = fridgeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -101,7 +101,7 @@
 		883E64482DAF4EFD00FA7F66 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				883E64472DAF4EFD00FA7F66 /* fridge.app */,
+				883E64472DAF4EFD00FA7F66 /* Best-By.app */,
 				883E64542DAF4EFE00FA7F66 /* fridgeTests.xctest */,
 				883E645E2DAF4EFE00FA7F66 /* fridgeUITests.xctest */,
 			);
@@ -130,7 +130,7 @@
 			packageProductDependencies = (
 			);
 			productName = fridge;
-			productReference = 883E64472DAF4EFD00FA7F66 /* fridge.app */;
+			productReference = 883E64472DAF4EFD00FA7F66 /* Best-By.app */;
 			productType = "com.apple.product-type.application";
 		};
 		883E64532DAF4EFE00FA7F66 /* fridgeTests */ = {
@@ -431,7 +431,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Best-By.fridge";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Best-By";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -464,7 +464,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Best-By.fridge";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Best-By";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
